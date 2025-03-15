@@ -118,29 +118,59 @@ class MessageFilter(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        await self.check_message(message)
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before, after):
+        await self.check_message(after)
+                        
+    async def check_message(self, message):
         if message.author.bot:
             return
-        
         if not message.guild:
             return
-
-        if message.channel.permissions_for(message.author).administrator:
+        if message.channel.permissions_for(message.author).manage_messages:
             return
-
         channels = await self.config.guild(message.guild).channels()
         channel_id = str(message.channel.id)
-        
         if channel_id in channels:
             required_words = channels[channel_id]
             if required_words:
-                message_words = message.content.lower().split()
-                if not any(word in message_words for word in required_words):
+                message_content = message.content.lower()
+                regexes = [self.wildcard_to_regex(word) for word in required_words]
+                if not any(regex.search(message_content) for regex in regexes):
                     try:
                         await message.delete()
                         await self.log_filtered_message(message)
                     except discord.HTTPException:
                         pass
+                        
+    def wildcard_to_regex(self, word):
+        parts = word.split('*')
+        escaped = [re.escape(part) for part in parts]
+        pattern = '.*'.join(escaped)
+        return re.compile(pattern)
 
+    async def check_message(self, message):
+        if message.author.bot:
+            return
+        if not message.guild:
+            return
+        if message.channel.permissions_for(message.author).manage_messages:
+            return
+        channels = await self.config.guild(message.guild).channels()
+        channel_id = str(message.channel.id)
+        if channel_id in channels:
+            required_words = channels[channel_id]
+            if required_words:
+                message_content = message.content.lower()
+                regexes = [self.wildcard_to_regex(word) for word in required_words]
+                if not any(regex.search(message_content) for regex in regexes):
+                    try:
+                        await message.delete()
+                        await self.log_filtered_message(message)
+                    except discord.HTTPException:
+                        pass
 
     async def log_filtered_message(self, message):
         log_channel_id = await self.config.guild(message.guild).log_channel()
