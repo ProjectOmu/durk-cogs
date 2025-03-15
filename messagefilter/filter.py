@@ -1,6 +1,7 @@
 from redbot.core import commands, Config, checks
 import discord
 from datetime import datetime
+import re
 
 class MessageFilter(commands.Cog):
     """Automatically delete messages that don't contain required words"""
