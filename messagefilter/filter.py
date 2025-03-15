@@ -241,20 +241,17 @@ class MessageFilter(commands.Cog):
         
     def strip_markdown(self, content):
         patterns = [
-            (r'(```.*?```)', re.DOTALL),                # Code blocks
-            (r'`[^`]*`', ''),                            # Inline code
-            (r'(~{2,}|\|{2,})(.*?)\1', re.DOTALL),       # Spoilers/strikethrough (any even bars/tildes)
-            (r'\[([^\]]+)\]\([^\)]+\)', r'\1'),          # Hyperlinks
-            (r'(\*\*|__|\*)(.*?)\1', r'\2'),             # Bold/italic/underline
-            (r'\n.*?#-.*?\n', '\n')                      # Lines containing -#
+            (r'```.*?```', '', re.DOTALL),                # Code blocks
+            (r'`[^`]*`', '', 0),                           # Inline code
+            (r'(~{2,}|\|{2,})(.*?)\1', '', re.DOTALL),     # Spoilers/strikethrough
+            (r'\[([^\]]+)\]\([^\)]+\)', r'\1', 0),         # Hyperlinks
+            (r'(\*\*|__|\*)(.*?)\1', r'\2', 0),            # Bold/italic/underline
+            (r'\n.*?#-.*?\n', '\n', 0)                     # Special line patterns
         ]
     
-        for pattern, flags in patterns:
-            if isinstance(flags, int):
-                content = re.sub(pattern[0], pattern[1], content, flags=flags)
-            else:
-                content = re.sub(pattern[0], pattern[1], content)
-    
+        for regex_pattern, replacement, flags in patterns:
+            content = re.sub(regex_pattern, replacement, content, flags=flags)
+        
         content = re.sub(r'[~|*_`-]+', '', content)
         return content.lower()
 
