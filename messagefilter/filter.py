@@ -197,14 +197,14 @@ class MessageFilter(commands.Cog):
         role = ctx.guild.get_role(role_id)
         
         if not role:
-            return await ctx.send("❌ Friendship role not found")
+            return await ctx.send("❌ Pegasister role not found")
             
         if role in ctx.author.roles:
-            return await ctx.send("You already have the Friendship role! 💖")
+            return await ctx.send("You already have the Pegasister role! 💖")
             
         try:
             await ctx.author.add_roles(role)
-            await ctx.send("🌈✨ You've been granted the Friendship role! Welcome to the club!")
+            await ctx.send("🌈✨ You've been granted the Pegasister role! Welcome to the club!")
         except discord.Forbidden:
             await ctx.send("❌ I don't have permissions to assign roles")
             
