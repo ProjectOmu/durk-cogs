@@ -43,10 +43,10 @@ class MessageFilter(commands.Cog):
                 await ctx.send("This channel wasn't being filtered")
                 
     @filter.command()
-    async def addword(self, ctx, channel: discord.TextChannel = None, *words):
+    async def addword(self, ctx, channel: discord.TextChannel = None, *, words: str):
+        """Add required words for a channel"""
         channel = channel or ctx.channel
-        if not words:
-            return await ctx.send("Please provide words to add")
+        words = [w.strip().lower() for w in words.split(", ")]
         
         async with self.config.guild(ctx.guild).channels() as channels:
             channel_id = str(channel.id)
@@ -55,40 +55,29 @@ class MessageFilter(commands.Cog):
             
             added = []
             for word in words:
-                if word.lower() not in channels[channel_id]:
-                    channels[channel_id].append(word.lower())
+                if word not in channels[channel_id]:
+                    channels[channel_id].append(word)
                     added.append(word)
             
             if added:
-                await ctx.send(f"Added words to {channel.mention}: {', '.join(added)}")
-            else:
-                await ctx.send("No new words were added")
-                
+                await ctx.send(f"Added words: {', '.join(added)}")
+
     @filter.command()
-    async def removeword(self, ctx, channel: discord.TextChannel = None, *words):
+    async def removeword(self, ctx, channel: discord.TextChannel = None, *, words: str):
+        """Remove words from a channel's required list"""
         channel = channel or ctx.channel
-        if not words:
-            return await ctx.send("Please provide words to remove")
+        words = [w.strip().lower() for w in words.split(", ")]
         
         async with self.config.guild(ctx.guild).channels() as channels:
             channel_id = str(channel.id)
-            if channel_id not in channels:
-                return await ctx.send("This channel isn't being filtered")
-            
             removed = []
             for word in words:
-                lower_word = word.lower()
-                if lower_word in channels[channel_id]:
-                    channels[channel_id].remove(lower_word)
+                if word in channels.get(channel_id, []):
+                    channels[channel_id].remove(word)
                     removed.append(word)
             
             if removed:
-                await ctx.send(f"Removed words from {channel.mention}: {', '.join(removed)}")
-                if not channels[channel_id]:
-                    del channels[channel_id]
-                    await ctx.send(f"Stopped filtering {channel.mention}")
-            else:
-                await ctx.send("None of these words were in the filter")
+                await ctx.send(f"Removed words: {', '.join(removed)}")
                 
     @filter.command()
     @commands.admin_or_permissions(administrator=True)
@@ -106,7 +95,7 @@ class MessageFilter(commands.Cog):
         for channel_id, words in channels.items():
             channel = ctx.guild.get_channel(int(channel_id))
             if channel:
-                word_list = ', '.join(words) if words else "No words set"
+                word_list = ', '.join(f'`{word}`' for word in required_words) if required_words else "No words set"
                 embed.add_field(
                     name=f"#{channel.name}",
                     value=f"Required words: {word_list}",
