@@ -1,5 +1,6 @@
 from redbot.core import commands, Config, checks
 import discord
+from datetime import datetime
 
 class MessageFilter(commands.Cog):
     """Automatically delete messages that don't contain required words"""
@@ -123,7 +124,7 @@ class MessageFilter(commands.Cog):
         if not message.guild:
             return
 
-        if message.channel.permissions_for(message.author).manage_messages:
+        if message.channel.permissions_for(message.author).administrator:
             return
 
         channels = await self.config.guild(message.guild).channels()
