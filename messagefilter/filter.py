@@ -16,12 +16,12 @@ class MessageFilter(commands.Cog):
         self.config.register_guild(**default_guild)
 
     @commands.group()
-    @commands.admin_or_permissions(administrator=True)
     async def filter(self, ctx):
         """Manage message filtering"""
         pass
 
     @filter.command()
+    @commands.admin_or_permissions(administrator=True)
     async def addchannel(self, ctx, channel: discord.TextChannel):
         async with self.config.guild(ctx.guild).channels() as channels:
             if str(channel.id) not in channels:
@@ -41,6 +41,7 @@ class MessageFilter(commands.Cog):
                 await ctx.send(embed=embed)
 
     @filter.command()
+    @commands.admin_or_permissions(administrator=True)
     async def removechannel(self, ctx, channel: discord.TextChannel):
         async with self.config.guild(ctx.guild).channels() as channels:
             channel_id = str(channel.id)
@@ -60,6 +61,7 @@ class MessageFilter(commands.Cog):
             await ctx.send(embed=embed)
                 
     @filter.command()
+    @commands.admin_or_permissions(administrator=True)
     async def addword(self, ctx, *, args: str):
         """Add required words to a channel's filter"""
         try:
@@ -107,6 +109,7 @@ class MessageFilter(commands.Cog):
             await ctx.send(embed=embed)
 
     @filter.command()
+    @commands.admin_or_permissions(administrator=True)
     async def removeword(self, ctx, *, args: str):
         """Remove words from a channel's filter"""
         try:
@@ -245,7 +248,7 @@ class MessageFilter(commands.Cog):
         content = re.sub(r'\*\*(.*?)\*\*', r'\1', content)
         content = re.sub(r'\*(.*?)\*', r'\1', content)
         content = re.sub(r'__(.*?)__', r'\1', content)
-        content = re.sub(r'~~(.*?)~~', r'\1', content)
+        content = re.sub(r'~~.*?~~', '', content, flags=re.DOTALL)
         
         content = '\n'.join([line for line in content.split('\n') if '-#' not in line])
 
