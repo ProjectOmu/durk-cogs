@@ -43,29 +43,30 @@ class MessageFilter(commands.Cog):
                 await ctx.send("This channel wasn't being filtered")
                 
     @filter.command()
-    async def addword(self, ctx, channel: discord.TextChannel, *words):
-        """Add required words for a channel"""
+    async def addword(self, ctx, channel: discord.TextChannel = None, *words):
+        channel = channel or ctx.channel
         if not words:
             return await ctx.send("Please provide words to add")
         
         async with self.config.guild(ctx.guild).channels() as channels:
-            if str(channel.id) not in channels:
-                channels[str(channel.id)] = []
+            channel_id = str(channel.id)
+            if channel_id not in channels:
+                channels[channel_id] = []
             
             added = []
             for word in words:
-                if word.lower() not in channels[str(channel.id)]:
-                    channels[str(channel.id)].append(word.lower())
+                if word.lower() not in channels[channel_id]:
+                    channels[channel_id].append(word.lower())
                     added.append(word)
             
             if added:
-                await ctx.send(f"Added words: {', '.join(added)}")
+                await ctx.send(f"Added words to {channel.mention}: {', '.join(added)}")
             else:
                 await ctx.send("No new words were added")
                 
     @filter.command()
-    async def removeword(self, ctx, channel: discord.TextChannel, *words):
-        """Remove words from a channel's required list"""
+    async def removeword(self, ctx, channel: discord.TextChannel = None, *words):
+        channel = channel or ctx.channel
         if not words:
             return await ctx.send("Please provide words to remove")
         
@@ -82,10 +83,10 @@ class MessageFilter(commands.Cog):
                     removed.append(word)
             
             if removed:
-                await ctx.send(f"Removed words: {', '.join(removed)}")
+                await ctx.send(f"Removed words from {channel.mention}: {', '.join(removed)}")
                 if not channels[channel_id]:
                     del channels[channel_id]
-                    await ctx.send(f"Channel {channel.mention} removed from filtering as it has no required words left")
+                    await ctx.send(f"Stopped filtering {channel.mention}")
             else:
                 await ctx.send("None of these words were in the filter")
                 
