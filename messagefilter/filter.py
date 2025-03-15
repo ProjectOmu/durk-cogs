@@ -140,11 +140,11 @@ class MessageFilter(commands.Cog):
                 
                 remaining = channels.get(channel_id, [])
                 if remaining:
-                embed.add_field(
-                    name="Remaining Words",
-                    value=', '.join(f'`{w}`' for w in remaining) or "None",
-                    inline=False
-                )
+                    embed.add_field(
+                        name="Remaining Words",
+                        value=', '.join(f'`{w}`' for w in remaining) or "None",
+                        inline=False
+                    )
                 else:
                     del channels[channel_id]
                     embed.add_field(
