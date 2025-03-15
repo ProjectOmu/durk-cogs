@@ -190,8 +190,6 @@ class MessageFilter(commands.Cog):
         
         await ctx.send(embed=embed)
 
-    python
-
     @commands.command()
     async def ilovefriendship(self, ctx):
         """Grants the friendship role"""
