@@ -251,27 +251,6 @@ class MessageFilter(commands.Cog):
 
         content = content.replace('~~', '').replace('||', '')
         return content.lower()
-        
-    async def check_message(self, message):
-        if message.author.bot:
-            return
-        if not message.guild:
-            return
-        if message.channel.permissions_for(message.author).administrator:
-            return
-        channels = await self.config.guild(message.guild).channels()
-        channel_id = str(message.channel.id)
-        if channel_id in channels:
-            required_words = channels[channel_id]
-            if required_words:
-                cleaned = self.strip_markdown(message.content)
-                regexes = [self.wildcard_to_regex(word) for word in required_words]
-                if not any(regex.search(cleaned) for regex in regexes):
-                    try:
-                        await message.delete()
-                        await self.log_filtered_message(message)
-                    except discord.HTTPException:
-                        pass
 
     async def log_filtered_message(self, message):
         log_channel_id = await self.config.guild(message.guild).log_channel()
