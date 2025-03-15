@@ -244,6 +244,7 @@ class MessageFilter(commands.Cog):
         content = re.sub(r'`[^`]*`', '', content)
         content = re.sub(r'\|\|.*?\|\|', '', content, flags=re.DOTALL)
         content = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', content)
+        content = re.sub(r'\[(.*?)\]\((?:[^\)]+)\)', r'\1', content, flags=re.DOTALL) # kill yourself mocho
         content = re.sub(r'\*\*(.*?)\*\*', r'\1', content)
         content = re.sub(r'\*(.*?)\*', r'\1', content)
         content = re.sub(r'__(.*?)__', r'\1', content)
