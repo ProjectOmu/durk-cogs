@@ -30,6 +30,17 @@ class MessageFilter(commands.Cog):
                 await ctx.send("This channel is already being filtered")
 
     @filter.command()
+    async def removechannel(self, ctx, channel: discord.TextChannel):
+        """Stop filtering a channel"""
+        async with self.config.guild(ctx.guild).channels() as channels:
+            channel_id = str(channel.id)
+            if channel_id in channels:
+                del channels[channel_id]
+                await ctx.send(f"Stopped filtering {channel.mention}")
+            else:
+                await ctx.send("This channel wasn't being filtered")
+                
+    @filter.command()
     async def addword(self, ctx, channel: discord.TextChannel, *words):
         """Add required words for a channel"""
         if not words:
@@ -49,7 +60,34 @@ class MessageFilter(commands.Cog):
                 await ctx.send(f"Added words: {', '.join(added)}")
             else:
                 await ctx.send("No new words were added")
-
+                
+    @filter.command()
+    async def removeword(self, ctx, channel: discord.TextChannel, *words):
+        """Remove words from a channel's required list"""
+        if not words:
+            return await ctx.send("Please provide words to remove")
+        
+        async with self.config.guild(ctx.guild).channels() as channels:
+            channel_id = str(channel.id)
+            if channel_id not in channels:
+                return await ctx.send("This channel isn't being filtered")
+            
+            removed = []
+            for word in words:
+                lower_word = word.lower()
+                if lower_word in channels[channel_id]:
+                    channels[channel_id].remove(lower_word)
+                    removed.append(word)
+            
+            if removed:
+                await ctx.send(f"Removed words: {', '.join(removed)}")
+                # Remove channel entry if no words left
+                if not channels[channel_id]:
+                    del channels[channel_id]
+                    await ctx.send(f"Channel {channel.mention} removed from filtering as it has no required words left")
+            else:
+                await ctx.send("None of these words were in the filter")
+                
     @filter.command()
     async def list(self, ctx):
         """Show currently filtered channels and their required words"""
