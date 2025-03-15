@@ -81,13 +81,19 @@ class MessageFilter(commands.Cog):
             
             if removed:
                 await ctx.send(f"Removed words: {', '.join(removed)}")
-                # Remove channel entry if no words left
                 if not channels[channel_id]:
                     del channels[channel_id]
                     await ctx.send(f"Channel {channel.mention} removed from filtering as it has no required words left")
             else:
                 await ctx.send("None of these words were in the filter")
                 
+    @filter.command()
+    @commands.admin_or_permissions(administrator=True)
+    async def logchannel(self, ctx, channel: discord.TextChannel):
+        """Set the channel for logging filtered messages"""
+        await self.config.guild(ctx.guild).log_channel.set(channel.id)
+        await ctx.send(f"Filter logs will now be sent to {channel.mention}")
+        
     @filter.command()
     async def list(self, ctx):
         """Show currently filtered channels and their required words"""
@@ -116,7 +122,10 @@ class MessageFilter(commands.Cog):
         
         if not message.guild:
             return
-        
+
+        if message.channel.permissions_for(message.author).manage_messages:
+            return
+
         channels = await self.config.guild(message.guild).channels()
         channel_id = str(message.channel.id)
         
@@ -127,5 +136,34 @@ class MessageFilter(commands.Cog):
                 if not any(word in message_words for word in required_words):
                     try:
                         await message.delete()
+                        await self.log_filtered_message(message)
                     except discord.HTTPException:
                         pass
+
+
+    async def log_filtered_message(self, message):
+        log_channel_id = await self.config.guild(message.guild).log_channel()
+        if not log_channel_id:
+            return
+        
+        log_channel = message.guild.get_channel(log_channel_id)
+        if not log_channel:
+            return
+        
+        embed = discord.Embed(
+            color=0xff0000,
+            description=f"**Message sent by {message.author.mention} filtered in {message.channel.mention}**\n"
+                       f"{message.content}"
+        )
+        embed.set_author(
+            name=f"{message.author.name} ({message.author.id})",
+            icon_url=message.author.display_avatar.url
+        )
+        embed.set_footer(
+            text=f"Author: {message.author.id} | Message ID: {message.id} • {datetime.now().strftime('%b %d, %Y %I:%M %p')}"
+        )
+        
+        try:
+            await log_channel.send(embed=embed)
+        except discord.HTTPException:
+            pass
