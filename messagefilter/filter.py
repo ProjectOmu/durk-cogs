@@ -192,7 +192,7 @@ class MessageFilter(commands.Cog):
 
     @commands.command()
     async def ilovefriendship(self, ctx):
-        """Grants the friendship role"""
+        """Grants the Pegasister role"""
         role_id = 1350605344769839194
         role = ctx.guild.get_role(role_id)
         
@@ -231,10 +231,7 @@ class MessageFilter(commands.Cog):
         for prefix in prefixes:
             if content.startswith(prefix.lower()):
                 cmd = content[len(prefix):].strip()
-                if cmd.startswith("filter list"):
-                    return
-                parts = cmd.split()
-                if len(parts) >= 2 and parts[0] == "filter" and parts[1] == "list":
+                if cmd.startswith("filter list") or cmd.startswith("ilovefriendship"):
                     return
                     
         channels = await self.config.guild(message.guild).channels()        
