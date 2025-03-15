@@ -204,7 +204,7 @@ class MessageFilter(commands.Cog):
             
         try:
             await ctx.author.add_roles(role)
-            await ctx.send("🌈✨ You've been granted the Pegasister role! Welcome to the club!")
+            await ctx.send("🌈✨ You've been granted the Pegasister role! Welcome to the club, you can never leave!")
         except discord.Forbidden:
             await ctx.send("❌ I don't have permissions to assign roles")
             
