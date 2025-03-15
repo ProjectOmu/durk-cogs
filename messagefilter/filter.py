@@ -225,6 +225,7 @@ class MessageFilter(commands.Cog):
     def strip_markdown(self, content):
         content = re.sub(r'```.*?```', '', content, flags=re.DOTALL)
         content = re.sub(r'`[^`]*`', '', content)
+        content = re.sub(r'\|\|.*?\|\|', '', content, flags=re.DOTALL)
         content = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', content)
         content = re.sub(r'\*\*(.*?)\*\*', r'\1', content)
         content = re.sub(r'\*(.*?)\*', r'\1', content)
