@@ -127,9 +127,9 @@ class MessageFilter(commands.Cog):
         if channel_id in channels:
             required_words = channels[channel_id]
             if required_words:
-                message_content = message.content.lower()
-                regexes = [self.wildcard_to_regex(word) for word in required_words]
-                if not any(regex.search(message_content) for regex in regexes):
+            message_content = self.strip_markdown(message.content)
+            regexes = [self.wildcard_to_regex(word) for word in required_words]
+            if not any(regex.search(message_content) for regex in regexes):
                     try:
                         await message.delete()
                         await self.log_filtered_message(message)
@@ -141,7 +141,14 @@ class MessageFilter(commands.Cog):
         escaped = [re.escape(part) for part in parts]
         pattern = '.*'.join(escaped)
         return re.compile(pattern)
-
+        
+    def strip_markdown(self, content):
+        content = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', content)
+        content = re.sub(r'`+([^`]*)`+', r'\1', content)
+        content = re.sub(r'\*\*?(.*?)\*\*?', r'\1', content)
+        content = re.sub(r'__(.*?)__', r'\1', content)
+        return content.lower()
+        
     async def check_message(self, message):
         if message.author.bot:
             return
