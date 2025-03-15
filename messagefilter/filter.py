@@ -143,9 +143,11 @@ class MessageFilter(commands.Cog):
         return re.compile(pattern)
         
     def strip_markdown(self, content):
+        content = re.sub(r'```.*?```', '', content, flags=re.DOTALL)
+        content = re.sub(r'`[^`]*`', '', content)
         content = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', content)
-        content = re.sub(r'`+([^`]*)`+', r'\1', content)
-        content = re.sub(r'\*\*?(.*?)\*\*?', r'\1', content)
+        content = re.sub(r'\*\*(.*?)\*\*', r'\1', content)
+        content = re.sub(r'\*(.*?)\*', r'\1', content)
         content = re.sub(r'__(.*?)__', r'\1', content)
         return content.lower()
         
@@ -161,9 +163,9 @@ class MessageFilter(commands.Cog):
         if channel_id in channels:
             required_words = channels[channel_id]
             if required_words:
-                message_content = message.content.lower()
+                cleaned = self.strip_markdown(message.content)
                 regexes = [self.wildcard_to_regex(word) for word in required_words]
-                if not any(regex.search(message_content) for regex in regexes):
+                if not any(regex.search(cleaned) for regex in regexes):
                     try:
                         await message.delete()
                         await self.log_filtered_message(message)
