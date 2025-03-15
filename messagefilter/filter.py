@@ -60,9 +60,18 @@ class MessageFilter(commands.Cog):
             await ctx.send(embed=embed)
                 
     @filter.command()
-    async def addword(self, ctx, channel: discord.TextChannel = None, *, words: str):
-        channel = channel or ctx.channel
-        words = [w.strip().lower() for w in re.split(r',\s*', words)]
+    async def addword(self, ctx, *, args: str):
+        """Add required words to a channel's filter"""
+        try:
+            # Try to parse channel from beginning of arguments
+            converter = commands.TextChannelConverter()
+            channel, _, words_part = args.partition(' ')
+            channel = await converter.convert(ctx, channel)
+            words = [w.strip().lower() for w in words_part.split(',') if w.strip()]
+        except commands.BadArgument:
+            # If channel parse fails, use current channel
+            channel = ctx.channel
+            words = [w.strip().lower() for w in args.split(',') if w.strip()]
         
         async with self.config.guild(ctx.guild).channels() as channels:
             channel_id = str(channel.id)
@@ -81,12 +90,13 @@ class MessageFilter(commands.Cog):
                 embed.description = f"To {channel.mention}'s filter"
                 embed.add_field(
                     name="New Words",
-                    value='\n'.join(f'• `{word}`' for word in added),
+                    value=', '.join(f'`{word}`' for word in added) or "None",
                     inline=False
                 )
+                current_words = '\n'.join(f'• `{w}`' for w in channels[channel_id]) or "None"
                 embed.add_field(
-                    name="Current Filter",
-                    value='\n'.join(f'• `{w}`' for w in channels[channel_id]) or "No words set",
+                    name="Current Filter Words",
+                    value=', '.join(f'`{w}`' for w in channels[channel_id]) or "None",
                     inline=False
                 )
             else:
@@ -97,9 +107,18 @@ class MessageFilter(commands.Cog):
             await ctx.send(embed=embed)
 
     @filter.command()
-    async def removeword(self, ctx, channel: discord.TextChannel = None, *, words: str):
-        channel = channel or ctx.channel
-        words = [w.strip().lower() for w in re.split(r',\s*', words)]
+    async def removeword(self, ctx, *, args: str):
+        """Remove words from a channel's filter"""
+        try:
+            # Try to parse channel from beginning of arguments
+            converter = commands.TextChannelConverter()
+            channel, _, words_part = args.partition(' ')
+            channel = await converter.convert(ctx, channel)
+            words = [w.strip().lower() for w in words_part.split(',') if w.strip()]
+        except commands.BadArgument:
+            # If channel parse fails, use current channel
+            channel = ctx.channel
+            words = [w.strip().lower() for w in args.split(',') if w.strip()]
         
         async with self.config.guild(ctx.guild).channels() as channels:
             channel_id = str(channel.id)
@@ -115,17 +134,17 @@ class MessageFilter(commands.Cog):
                 embed.description = f"From {channel.mention}'s filter"
                 embed.add_field(
                     name="Removed Words",
-                    value='\n'.join(f'• `{word}`' for word in removed),
+                    value=', '.join(f'`{word}`' for word in removed) or "None",
                     inline=False
                 )
                 
                 remaining = channels.get(channel_id, [])
                 if remaining:
-                    embed.add_field(
-                        name="Remaining Words",
-                        value='\n'.join(f'• `{w}`' for w in remaining),
-                        inline=False
-                    )
+                embed.add_field(
+                    name="Remaining Words",
+                    value=', '.join(f'`{w}`' for w in remaining) or "None",
+                    inline=False
+                )
                 else:
                     del channels[channel_id]
                     embed.add_field(
