@@ -198,11 +198,26 @@ class MessageFilter(commands.Cog):
     async def check_message(self, message):
         if message.author.bot:
             return
+            
         if not message.guild:
             return
+            
         if message.channel.permissions_for(message.author).manage_messages:
             return
+
+        prefixes = await self.bot.get_valid_prefixes(message.guild)
+        content = message.content.lower().strip()
+        for prefix in prefixes:
+            if content.startswith(prefix.lower()):
+                cmd = content[len(prefix):].strip()
+                if cmd.startswith("filter list"):
+                    return
+                parts = cmd.split()
+                if len(parts) >= 2 and parts[0] == "filter" and parts[1] == "list":
+                    return
+                
         channels = await self.config.guild(message.guild).channels()
+        
         channel_id = str(message.channel.id)
         if channel_id in channels:
             required_words = channels[channel_id]
@@ -230,6 +245,11 @@ class MessageFilter(commands.Cog):
         content = re.sub(r'\*\*(.*?)\*\*', r'\1', content)
         content = re.sub(r'\*(.*?)\*', r'\1', content)
         content = re.sub(r'__(.*?)__', r'\1', content)
+        content = re.sub(r'~~(.*?)~~', r'\1', content)
+        
+        content = '\n'.join([line for line in content.split('\n') if '-#' not in line])
+
+        content = content.replace('~~', '').replace('||', '')
         return content.lower()
         
     async def check_message(self, message):
