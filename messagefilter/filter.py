@@ -205,7 +205,7 @@ class MessageFilter(commands.Cog):
         if not message.guild:
             return
             
-        if message.channel.permissions_for(message.author).manage_messages:
+        if message.channel.permissions_for(message.author).administrator:
             return
 
         prefixes = await self.bot.get_valid_prefixes(message.guild)
