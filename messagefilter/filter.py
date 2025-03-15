@@ -190,6 +190,26 @@ class MessageFilter(commands.Cog):
         
         await ctx.send(embed=embed)
 
+    python
+
+    @commands.command()
+    async def ilovefriendship(self, ctx):
+        """Grants the friendship role"""
+        role_id = 1350605344769839194
+        role = ctx.guild.get_role(role_id)
+        
+        if not role:
+            return await ctx.send("❌ Friendship role not found")
+            
+        if role in ctx.author.roles:
+            return await ctx.send("You already have the Friendship role! 💖")
+            
+        try:
+            await ctx.author.add_roles(role)
+            await ctx.send("🌈✨ You've been granted the Friendship role! Welcome to the club!")
+        except discord.Forbidden:
+            await ctx.send("❌ I don't have permissions to assign roles")
+            
     @commands.Cog.listener()
     async def on_message(self, message):
         await self.check_message(message)
