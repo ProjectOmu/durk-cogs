@@ -95,7 +95,7 @@ class MessageFilter(commands.Cog):
         for channel_id, words in channels.items():
             channel = ctx.guild.get_channel(int(channel_id))
             if channel:
-                word_list = ', '.join(f'`{word}`' for word in required_words) if required_words else "No words set"
+                word_list = ', '.join(f'`{word}`' for word in words) if words else "No words set"
                 embed.add_field(
                     name=f"#{channel.name}",
                     value=f"Required words: {word_list}",
