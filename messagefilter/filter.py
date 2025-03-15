@@ -207,9 +207,19 @@ class MessageFilter(commands.Cog):
             
         if message.channel.permissions_for(message.author).manage_messages:
             return
-                
-        channels = await self.config.guild(message.guild).channels()
-        
+
+        prefixes = await self.bot.get_valid_prefixes(message.guild)
+        content = message.content.lower().strip()
+        for prefix in prefixes:
+            if content.startswith(prefix.lower()):
+                cmd = content[len(prefix):].strip()
+                if cmd.startswith("filter list"):
+                    return
+                parts = cmd.split()
+                if len(parts) >= 2 and parts[0] == "filter" and parts[1] == "list":
+                    return
+                    
+        channels = await self.config.guild(message.guild).channels()        
         channel_id = str(message.channel.id)
         if channel_id in channels:
             required_words = channels[channel_id]
