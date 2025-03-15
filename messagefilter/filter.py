@@ -158,7 +158,7 @@ class MessageFilter(commands.Cog):
             return
         if not message.guild:
             return
-        if message.channel.permissions_for(message.author).adminstrator:
+        if message.channel.permissions_for(message.author).administrator:
             return
         channels = await self.config.guild(message.guild).channels()
         channel_id = str(message.channel.id)
