@@ -253,7 +253,7 @@ class MessageFilter(commands.Cog):
                             await message.author.send(
                                 f"Your message in {message.channel.mention} was filtered because "
                                 f"it did not contain one of the following words: {word_list}",
-                                delete_after=20
+                                delete_after=120
                             )
                         except discord.Forbidden:
                             pass
