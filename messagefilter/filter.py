@@ -1,6 +1,7 @@
 from redbot.core import commands, Config, checks
 import discord
 from datetime import datetime
+from datetime import timedelta
 import re
 
 class MessageFilter(commands.Cog):
@@ -236,17 +237,37 @@ class MessageFilter(commands.Cog):
                     
         channels = await self.config.guild(message.guild).channels()        
         channel_id = str(message.channel.id)
+
         if channel_id in channels:
             required_words = channels[channel_id]
             if required_words:
                 message_content = self.strip_markdown(message.content)
                 regexes = [self.wildcard_to_regex(word) for word in required_words]
                 if not any(regex.search(message_content) for regex in regexes):
+                    try:
+                        await message.delete()
+                        await self.log_filtered_message(message)
+                        
                         try:
-                            await message.delete()
-                            await self.log_filtered_message(message)
-                        except discord.HTTPException:
+                            word_list = ', '.join(f'`{word}`' for word in required_words)
+                            await message.author.send(
+                                f"Your message in {message.channel.mention} was filtered because "
+                                f"it did not contain one of the following words: {word_list}",
+                                delete_after=20
+                            )
+                        except discord.Forbidden:
                             pass
+
+                        try:
+                            await message.author.timeout(
+                                timedelta(minutes=1), 
+                                reason=f"Filter violation in #{message.channel.name}"
+                            )
+                        except discord.Forbidden:
+                            pass
+
+                    except discord.HTTPException:
+                        pass
                         
     def wildcard_to_regex(self, word):
         parts = word.split('*')
