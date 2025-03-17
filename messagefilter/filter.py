@@ -211,13 +211,10 @@ class MessageFilter(commands.Cog):
 
     @commands.command()
     async def ihatefriendship(self, ctx):
-        """Opt-out of message filtering until 2025"""
-        cst = ZoneInfo("America/Chicago")
-        end_time = datetime(2025, 3, 21, 0, 0, tzinfo=cst).astimezone(timezone.utc)
-        
+        """Opt-out of message filtering until March 21, 2025"""
         try:
             await ctx.author.timeout(
-                until=end_time,
+                until=datetime.fromtimestamp(1742533200, timezone.utc),
                 reason="Event filter exemption"
             )
             await ctx.send(f"⏳ {ctx.author.mention} has been exempted from filtering until March 21, 2025")
@@ -226,9 +223,9 @@ class MessageFilter(commands.Cog):
         except discord.HTTPException as e:
             await ctx.send(f"❌ Error: {e}")
                 
-        @commands.Cog.listener()
-        async def on_message(self, message):
-            await self.check_message(message)
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        await self.check_message(message)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
