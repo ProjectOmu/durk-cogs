@@ -249,7 +249,7 @@ class MessageFilter(commands.Cog):
         for prefix in prefixes:
             if content.startswith(prefix.lower()):
                 cmd = content[len(prefix):].strip()
-                if cmd.startswith("filter list") or cmd.startswith("ilovefriendship"):
+                if cmd.startswith("filter list") or cmd.startswith("ilovefriendship") or cmd.startswith ("ihatefriendship"):
                     return
                     
         channels = await self.config.guild(message.guild).channels()        
