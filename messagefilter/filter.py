@@ -212,8 +212,10 @@ class MessageFilter(commands.Cog):
     async def ihatefriendship(self, ctx):
         """Opt-out of message filtering until March 21, 2025"""
         try:
+            timeout_until = datetime.fromtimestamp(1742533200, timezone.utc)
+            
             await ctx.author.timeout(
-                until=datetime.fromtimestamp(1742533200, timezone.utc),
+                timeout_until, 
                 reason="Event filter exemption"
             )
             await ctx.send(f"⏳ {ctx.author.mention} has been exempted from filtering until March 21, 2025")
