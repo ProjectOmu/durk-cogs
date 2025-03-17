@@ -1,8 +1,8 @@
 from redbot.core import commands, Config, checks
 import discord
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timezone, timedelta
 import re
+from zoneinfo import ZoneInfo
 
 class MessageFilter(commands.Cog):
     """Automatically delete messages that don't contain required words"""
@@ -208,10 +208,27 @@ class MessageFilter(commands.Cog):
             await ctx.send("🌈✨ You've been granted the Pegasister role! Welcome to the club, you can never leave!")
         except discord.Forbidden:
             await ctx.send("❌ I don't have permissions to assign roles")
-            
-    @commands.Cog.listener()
-    async def on_message(self, message):
-        await self.check_message(message)
+
+    @commands.command()
+    async def ihatefriendship(self, ctx):
+        """Opt-out of message filtering until 2025"""
+        cst = ZoneInfo("America/Chicago")
+        end_time = datetime(2025, 3, 21, 0, 0, tzinfo=cst).astimezone(timezone.utc)
+        
+        try:
+            await ctx.author.timeout(
+                until=end_time,
+                reason="Event filter exemption"
+            )
+            await ctx.send(f"⏳ {ctx.author.mention} has been exempted from filtering until March 21, 2025")
+        except discord.Forbidden:
+            await ctx.send("❌ I need **Moderate Members** permission to do this")
+        except discord.HTTPException as e:
+            await ctx.send(f"❌ Error: {e}")
+                
+        @commands.Cog.listener()
+        async def on_message(self, message):
+            await self.check_message(message)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
@@ -259,7 +276,7 @@ class MessageFilter(commands.Cog):
                             pass
 
                         try:
-                            await message.author.timeout(
+                            await message. author.timeout(
                                 timedelta(minutes=1), 
                                 reason=f"Filter violation in #{message.channel.name}"
                             )
