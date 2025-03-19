@@ -338,14 +338,13 @@ class MessageFilter(commands.Cog):
                                 )
                             except discord.Forbidden:
                                 pass
-                        try:
-                            await message.author.timeout(
-                                timedelta(seconds=20), 
-                                reason=f"Filter violation in #{message.channel.name}"
-                            )
-                        except discord.Forbidden:
-                            pass
-    
+                            try:
+                                await message.author.timeout(
+                                    timedelta(seconds=20), 
+                                    reason=f"Filter violation in #{message.channel.name}"
+                                )
+                            except discord.Forbidden:
+                                pass
                     except discord.HTTPException:
                         pass
                 else:
