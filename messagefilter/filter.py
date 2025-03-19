@@ -22,23 +22,65 @@ class MessageFilter(commands.Cog):
 
     @filter.command()
     @commands.admin_or_permissions(administrator=True)
-    async def addchannel(self, ctx, channel: discord.TextChannel):
+    async def addword(self, ctx, *, args: str):
+        """Add required words to a channel's filter"""
+        try:
+            converter = commands.TextChannelConverter()
+            channel, _, words_part = args.partition(' ')
+            channel = await converter.convert(ctx, channel)
+            words = [w.strip().lower() for w in words_part.split(',') if w.strip()]
+        except commands.BadArgument:
+            channel = ctx.channel
+            words = [w.strip().lower() for w in args.split(',') if w.strip()]
+        
         async with self.config.guild(ctx.guild).channels() as channels:
-            if str(channel.id) not in channels:
-                channels[str(channel.id)] = []
-                embed = discord.Embed(
-                    title="✅ Channel Added",
-                    description=f"{channel.mention} will now filter messages",
-                    color=0x00ff00
+            channel_id = str(channel.id)
+            
+            # Migrate old format if needed
+            if channel_id in channels and isinstance(channels[channel_id], list):
+                channels[channel_id] = {
+                    "words": channels[channel_id],
+                    "filtered_count": 0,
+                    "word_usage": {}
+                }
+            
+            if channel_id not in channels:
+                channels[channel_id] = {
+                    "words": [],
+                    "filtered_count": 0,
+                    "word_usage": {}
+                }
+            
+            channel_data = channels[channel_id]
+            existing_words = channel_data["words"]
+            added = []
+            
+            for word in words:
+                if word not in existing_words:
+                    existing_words.append(word)
+                    added.append(word)
+            
+            embed = discord.Embed(color=0x00ff00)
+            if added:
+                embed.title = f"✅ Added {len(added)} Words"
+                embed.description = f"To {channel.mention}'s filter"
+                embed.add_field(
+                    name="New Words",
+                    value=', '.join(f'`{word}`' for word in added) or "None",
+                    inline=False
                 )
-                await ctx.send(embed=embed)
+                current_words = ', '.join(f'`{w}`' for w in existing_words) or "None"
+                embed.add_field(
+                    name="Current Filter Words",
+                    value=current_words,
+                    inline=False
+                )
             else:
-                embed = discord.Embed(
-                    title="⚠️ Already Filtered",
-                    description=f"{channel.mention} is already being monitored",
-                    color=0xffd700
-                )
-                await ctx.send(embed=embed)
+                embed.title = "⏩ No Changes"
+                embed.description = "All specified words were already in the filter"
+                embed.color = 0xffd700
+            
+            await ctx.send(embed=embed)
 
     @filter.command()
     @commands.admin_or_permissions(administrator=True)
@@ -65,13 +107,11 @@ class MessageFilter(commands.Cog):
     async def addword(self, ctx, *, args: str):
         """Add required words to a channel's filter"""
         try:
-            # Try to parse channel from beginning of arguments
             converter = commands.TextChannelConverter()
             channel, _, words_part = args.partition(' ')
             channel = await converter.convert(ctx, channel)
             words = [w.strip().lower() for w in words_part.split(',') if w.strip()]
         except commands.BadArgument:
-            # If channel parse fails, use current channel
             channel = ctx.channel
             words = [w.strip().lower() for w in args.split(',') if w.strip()]
         
@@ -197,6 +237,15 @@ class MessageFilter(commands.Cog):
         channel_id = str(channel.id)
         
         channels = await self.config.guild(ctx.guild).channels()
+        
+        if channel_id in channels and isinstance(channels[channel_id], list):
+            channels[channel_id] = {
+                "words": channels[channel_id],
+                "filtered_count": 0,
+                "word_usage": {}
+            }
+            await self.config.guild(ctx.guild).channels.set(channels)
+        
         channel_data = channels.get(channel_id, {})
         
         if not channel_data.get("words"):
@@ -207,11 +256,9 @@ class MessageFilter(commands.Cog):
             color=0x00ff00
         )
         
-        # Filtered messages count
         filtered_count = channel_data.get("filtered_count", 0)
         embed.add_field(name="🚫 Messages Filtered", value=str(filtered_count), inline=False)
-        
-        # Word usage statistics
+
         word_usage = channel_data.get("word_usage", {})
         if word_usage:
             sorted_words = sorted(word_usage.items(), key=lambda x: x[1], reverse=True)
@@ -266,8 +313,16 @@ class MessageFilter(commands.Cog):
         channel_id = str(message.channel.id)
         
         if channel_id in channels:
+            if isinstance(channels[channel_id], list):
+                channels[channel_id] = {
+                    "words": channels[channel_id],
+                    "filtered_count": 0,
+                    "word_usage": {}
+                }
+                await self.config.guild(message.guild).channels.set(channels)
+                
             channel_data = channels[channel_id]
-            required_words = channel_data.get("words", [])
+            required_words = channel_data["words"]
             
             if required_words:
                 cleaned = self.strip_markdown(message.content)
