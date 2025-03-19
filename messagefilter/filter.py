@@ -275,7 +275,7 @@ class MessageFilter(commands.Cog):
         if '*' not in word:
             pattern = rf'\b{pattern}\b'
     
-    return re.compile(pattern)
+        return re.compile(pattern)
         
     def strip_markdown(self, content):
         patterns = [
