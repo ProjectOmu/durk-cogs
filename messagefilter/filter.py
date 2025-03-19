@@ -321,6 +321,7 @@ class MessageFilter(commands.Cog):
                     if not match_found:
                         try:
                             await message.delete()
+                            await self.log_filtered_message(message)
                             channel_data["filtered_count"] = channel_data.get("filtered_count", 0) + 1
                             
                             try:
