@@ -189,7 +189,39 @@ class MessageFilter(commands.Cog):
             embed.description = "No channels being filtered"
         
         await ctx.send(embed=embed)
-
+        
+    @filter.command()
+    async def stats(self, ctx, channel: discord.TextChannel = None):
+        """Show filtering statistics for a channel"""
+        channel = channel or ctx.channel
+        channel_id = str(channel.id)
+        
+        channels = await self.config.guild(ctx.guild).channels()
+        channel_data = channels.get(channel_id, {})
+        
+        if not channel_data.get("words"):
+            return await ctx.send(f"{channel.mention} is not being filtered")
+        
+        embed = discord.Embed(
+            title=f"Filter Statistics for #{channel.name}",
+            color=0x00ff00
+        )
+        
+        # Filtered messages count
+        filtered_count = channel_data.get("filtered_count", 0)
+        embed.add_field(name="🚫 Messages Filtered", value=str(filtered_count), inline=False)
+        
+        # Word usage statistics
+        word_usage = channel_data.get("word_usage", {})
+        if word_usage:
+            sorted_words = sorted(word_usage.items(), key=lambda x: x[1], reverse=True)
+            top_words = "\n".join([f"• `{word}`: {count} uses" for word, count in sorted_words[:5]])
+            embed.add_field(name="🏆 Top Filter Words", value=top_words, inline=False)
+        else:
+            embed.add_field(name="📊 Word Usage", value="No usage data collected yet", inline=False)
+            
+        await ctx.send(embed=embed)
+        
     @commands.command()
     async def ILOVEWARRIORS(self, ctx):
         """Grants the Warrior role"""
@@ -212,39 +244,47 @@ class MessageFilter(commands.Cog):
     async def on_message(self, message):
         await self.check_message(message)
 
-    @commands.Cog.listener()
-    async def on_message_edit(self, before, after):
-        await self.check_message(after)
-                        
     async def check_message(self, message):
         if message.author.bot:
             return
             
         if not message.guild:
             return
-            
-        if message.channel.permissions_for(message.author).administrator:
+    
+        if message.channel.permissions_for(message.author).manage_messages:
             return
-
+    
         prefixes = await self.bot.get_valid_prefixes(message.guild)
         content = message.content.lower().strip()
         for prefix in prefixes:
             if content.startswith(prefix.lower()):
                 cmd = content[len(prefix):].strip()
-                if cmd.startswith("filter list") or cmd.startswith("ILOVEWARRIORS"):
+                if cmd.startswith("filter") or cmd.startswith("ILOVEWARRIORS"):
                     return
-                    
-        channels = await self.config.guild(message.guild).channels()        
+    
+        channels = await self.config.guild(message.guild).channels()
         channel_id = str(message.channel.id)
-
+        
         if channel_id in channels:
-            required_words = channels[channel_id]
+            channel_data = channels[channel_id]
+            required_words = channel_data.get("words", [])
+            
             if required_words:
-                message_content = self.strip_markdown(message.content)
+                cleaned = self.strip_markdown(message.content)
                 regexes = [self.wildcard_to_regex(word) for word in required_words]
-                if not any(regex.search(message_content) for regex in regexes):
+                match_found = False
+                
+                for word, regex in zip(required_words, regexes):
+                    if regex.search(cleaned):
+                        channel_data["word_usage"] = channel_data.get("word_usage", {})
+                        channel_data["word_usage"][word] = channel_data["word_usage"].get(word, 0) + 1
+                        match_found = True
+                        break
+                
+                if not match_found:
                     try:
                         await message.delete()
+                        channel_data["filtered_count"] = channel_data.get("filtered_count", 0) + 1
                         await self.log_filtered_message(message)
                         
                         try:
@@ -256,17 +296,20 @@ class MessageFilter(commands.Cog):
                             )
                         except discord.Forbidden:
                             pass
-
+    
                         try:
-                            await message. author.timeout(
+                            await message.author.timeout(
                                 timedelta(seconds=20), 
                                 reason=f"Filter violation in #{message.channel.name}"
                             )
                         except discord.Forbidden:
                             pass
-
+    
                     except discord.HTTPException:
                         pass
+                else:
+                    channels[channel_id] = channel_data
+                    await self.config.guild(message.guild).channels.set(channels)
                         
     def wildcard_to_regex(self, word):
         parts = word.split('*')
