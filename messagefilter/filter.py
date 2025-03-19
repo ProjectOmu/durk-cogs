@@ -272,18 +272,22 @@ class MessageFilter(commands.Cog):
         parts = word.split('*')
         escaped = [re.escape(part) for part in parts]
         pattern = '.*'.join(escaped)
-        return re.compile(pattern)
+        if '*' not in word:
+            pattern = rf'\b{pattern}\b'
+    
+    return re.compile(pattern)
         
     def strip_markdown(self, content):
         patterns = [
             (r'```.*?```', '', re.DOTALL),                # Code blocks
-            (r'`[^`]*`', '', 0),                           # Inline code
-            (r'(~{2,}|\|{2,})(.*?)\1', '', re.DOTALL),     # Spoilers/strikethrough
-            (r'\[([^\]]+)\]\([^\)]+\)', r'\1', 0),         # Hyperlinks
-            (r'(\*\*|__|\*)(.*?)\1', r'\2', 0),            # Bold/italic/underline
-            (r'\n.*?#-.*?\n', '\n', 0)                     # Special line patterns
+            (r'`[^`]*`', '', 0),                          # Inline code
+            (r':[^:]+:', '', 0),                          # Emoji tags
+            (r'(~{2,}|\|{2,})(.*?)\1', '', re.DOTALL),    # Spoilers/strikethrough
+            (r'\[([^\]]+)\]\([^\)]+\)', r'\1', 0),        # Hyperlinks
+            (r'(\*\*|__|\*)(.*?)\1', r'\2', 0),           # Bold/italic/underline
+            (r'\n.*?#-.*?\n', '\n', 0)                    # Special line patterns
         ]
-    
+        
         for regex_pattern, replacement, flags in patterns:
             content = re.sub(regex_pattern, replacement, content, flags=flags)
         
