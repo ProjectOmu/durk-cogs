@@ -131,13 +131,11 @@ class MessageFilter(commands.Cog):
     async def removeword(self, ctx, *, args: str):
         """Remove words from a channel's filter"""
         try:
-            # Try to parse channel from beginning of arguments
             converter = commands.TextChannelConverter()
             channel, _, words_part = args.partition(' ')
             channel = await converter.convert(ctx, channel)
             words = [w.strip().lower() for w in words_part.split(',') if w.strip()]
         except commands.BadArgument:
-            # If channel parse fails, use current channel
             channel = ctx.channel
             words = [w.strip().lower() for w in args.split(',') if w.strip()]
         
@@ -294,43 +292,39 @@ class MessageFilter(commands.Cog):
                 if cmd.startswith("filter") or cmd.startswith("ILOVEWARRIORS"):
                     return
     
-        channels = await self.config.guild(message.guild).channels()
-        channel_id = str(message.channel.id)
-        
-        if channel_id in channels:
-            if isinstance(channels[channel_id], list):
-                channels[channel_id] = {
-                    "words": channels[channel_id],
-                    "filtered_count": 0,
-                    "word_usage": {}
-                }
-                await self.config.guild(message.guild).channels.set(channels)
-                
-            channel_data = channels[channel_id]
-            required_words = channel_data["words"]
+        async with self.config.guild(message.guild).channels() as channels:
+            channel_id = str(message.channel.id)
             
-            if required_words:
-                cleaned = self.strip_markdown(message.content)
-                regexes = [self.wildcard_to_regex(word) for word in required_words]
-                match_found = False
+            if channel_id in channels:
+                if isinstance(channels[channel_id], list):
+                    channels[channel_id] = {
+                        "words": channels[channel_id],
+                        "filtered_count": 0,
+                        "word_usage": {}
+                    }
+                    await self.config.guild(message.guild).channels.set(channels)
                 
-                for word, regex in zip(required_words, regexes):
-                    if regex.search(cleaned):
-                        channel_data["word_usage"] = channel_data.get("word_usage", {})
-                        channel_data["word_usage"][word] = channel_data["word_usage"].get(word, 0) + 1
-                        match_found = True
-                        break
+                channel_data = channels[channel_id]
+                required_words = channel_data.get("words", [])
                 
-                if not match_found:
-                    try:
-                        await message.delete()
-                        channel_data["filtered_count"] = channel_data.get("filtered_count", 0) + 1
-                        channels[channel_id] = channel_data
-                        await self.config.guild(message.guild).channels.set(channels)
-                        
+                if required_words:
+                    cleaned = self.strip_markdown(message.content)
+                    regexes = [self.wildcard_to_regex(word) for word in required_words]
+                    match_found = False
+                    
+                    for word, regex in zip(required_words, regexes):
+                        if regex.search(cleaned):
+                            channel_data["word_usage"][word] = channel_data["word_usage"].get(word, 0) + 1
+                            match_found = True
+                            break
+                    
+                    if not match_found:
                         try:
-                            word_list = ', '.join(f'`{word}`' for word in required_words)
+                            await message.delete()
+                            channel_data["filtered_count"] = channel_data.get("filtered_count", 0) + 1
+                            
                             try:
+                                word_list = ', '.join(f'`{word}`' for word in required_words)
                                 await message.author.send(
                                     f"Your message in {message.channel.mention} was filtered because "
                                     f"it did not contain one of the following words: {word_list}",
@@ -338,6 +332,7 @@ class MessageFilter(commands.Cog):
                                 )
                             except discord.Forbidden:
                                 pass
+    
                             try:
                                 await message.author.timeout(
                                     timedelta(seconds=20), 
@@ -345,11 +340,15 @@ class MessageFilter(commands.Cog):
                                 )
                             except discord.Forbidden:
                                 pass
-                    except discord.HTTPException:
-                        pass
-                else:
-                    channels[channel_id] = channel_data
-                    await self.config.guild(message.guild).channels.set(channels)
+    
+                        except discord.HTTPException:
+                            pass
+                        finally:
+                            channels[channel_id] = channel_data
+                            await self.config.guild(message.guild).channels.set(channels)
+                    else:
+                        channels[channel_id] = channel_data
+                        await self.config.guild(message.guild).channels.set(channels)
                         
     def wildcard_to_regex(self, word):
         parts = word.split('*')
