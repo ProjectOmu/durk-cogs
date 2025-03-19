@@ -193,10 +193,17 @@ class MessageFilter(commands.Cog):
         channels = await self.config.guild(ctx.guild).channels()
         embed = discord.Embed(title="Filtered Channels", color=0x00ff00)
         
-        for channel_id, words in channels.items():
+        for channel_id, channel_data in channels.items():
+            if isinstance(channel_data, list):
+                channel_data = {
+                    "words": channel_data,
+                    "filtered_count": 0,
+                    "word_usage": {}
+                }
+            
             channel = ctx.guild.get_channel(int(channel_id))
-            if channel:
-                word_list = ', '.join(f'`{word}`' for word in words) if words else "No words set"
+            if channel and channel_data.get("words"):
+                word_list = ', '.join(f'`{word}`' for word in channel_data["words"]) or "No words set"
                 embed.add_field(
                     name=f"#{channel.name}",
                     value=f"Required words: {word_list}",
@@ -318,15 +325,18 @@ class MessageFilter(commands.Cog):
                     try:
                         await message.delete()
                         channel_data["filtered_count"] = channel_data.get("filtered_count", 0) + 1
-                        await self.log_filtered_message(message)
+                        channels[channel_id] = channel_data
+                        await self.config.guild(message.guild).channels.set(channels)
                         
                         try:
                             word_list = ', '.join(f'`{word}`' for word in required_words)
-                            await message.author.send(
-                                f"Your message in {message.channel.mention} was filtered because "
-                                f"it did not contain one of the following words: {word_list}",
-                                delete_after=120
-                            )
+                            try:
+                                await message.author.send(
+                                    f"Your message in {message.channel.mention} was filtered because "
+                                    f"it did not contain one of the following words: {word_list}",
+                                    delete_after=120
+                                )
+                    except discord.Forbidden:
                         except discord.Forbidden:
                             pass
     
