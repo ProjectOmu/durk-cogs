@@ -336,8 +336,8 @@ class MessageFilter(commands.Cog):
                                     f"it did not contain one of the following words: {word_list}",
                                     delete_after=120
                                 )
-                                except discord.Forbidden:
-                                    pass
+                            except discord.Forbidden:
+                                pass
                         try:
                             await message.author.timeout(
                                 timedelta(seconds=20), 
