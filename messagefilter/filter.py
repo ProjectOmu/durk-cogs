@@ -19,6 +19,51 @@ class MessageFilter(commands.Cog):
     async def filter(self, ctx):
         """Manage message filtering"""
         pass
+        
+    @filter.command()
+    @commands.admin_or_permissions(administrator=True)
+    async def addchannel(self, ctx, channel: discord.TextChannel):
+        async with self.config.guild(ctx.guild).channels() as channels:
+            if str(channel.id) not in channels:
+                channels[str(channel.id)] = {
+                    "words": [],
+                    "filtered_count": 0,
+                    "word_usage": {}
+                }
+                embed = discord.Embed(
+                    title="✅ Channel Added",
+                    description=f"{channel.mention} will now filter messages",
+                    color=0x00ff00
+                )
+                await ctx.send(embed=embed)
+            else:
+                embed = discord.Embed(
+                    title="⚠️ Already Filtered",
+                    description=f"{channel.mention} is already being monitored",
+                    color=0xffd700
+                )
+                await ctx.send(embed=embed)
+                
+    @filter.command()
+    @commands.admin_or_permissions(administrator=True)
+    async def removechannel(self, ctx, channel: discord.TextChannel):
+        async with self.config.guild(ctx.guild).channels() as channels:
+            channel_id = str(channel.id)
+            if channel_id in channels:
+                del channels[channel_id]
+                embed = discord.Embed(
+                    title="✅ Channel Removed",
+                    description=f"Stopped filtering {channel.mention}",
+                    color=0x00ff00
+                )
+            else:
+                embed = discord.Embed(
+                    title="⚠️ Not Filtered",
+                    description=f"{channel.mention} wasn't being monitored",
+                    color=0xffd700
+                )
+            await ctx.send(embed=embed)
+                
 
     @filter.command()
     @commands.admin_or_permissions(administrator=True)
@@ -36,7 +81,6 @@ class MessageFilter(commands.Cog):
         async with self.config.guild(ctx.guild).channels() as channels:
             channel_id = str(channel.id)
             
-            # Migrate old format if needed
             if channel_id in channels and isinstance(channels[channel_id], list):
                 channels[channel_id] = {
                     "words": channels[channel_id],
@@ -73,72 +117,6 @@ class MessageFilter(commands.Cog):
                 embed.add_field(
                     name="Current Filter Words",
                     value=current_words,
-                    inline=False
-                )
-            else:
-                embed.title = "⏩ No Changes"
-                embed.description = "All specified words were already in the filter"
-                embed.color = 0xffd700
-            
-            await ctx.send(embed=embed)
-
-    @filter.command()
-    @commands.admin_or_permissions(administrator=True)
-    async def removechannel(self, ctx, channel: discord.TextChannel):
-        async with self.config.guild(ctx.guild).channels() as channels:
-            channel_id = str(channel.id)
-            if channel_id in channels:
-                del channels[channel_id]
-                embed = discord.Embed(
-                    title="✅ Channel Removed",
-                    description=f"Stopped filtering {channel.mention}",
-                    color=0x00ff00
-                )
-            else:
-                embed = discord.Embed(
-                    title="⚠️ Not Filtered",
-                    description=f"{channel.mention} wasn't being monitored",
-                    color=0xffd700
-                )
-            await ctx.send(embed=embed)
-                
-    @filter.command()
-    @commands.admin_or_permissions(administrator=True)
-    async def addword(self, ctx, *, args: str):
-        """Add required words to a channel's filter"""
-        try:
-            converter = commands.TextChannelConverter()
-            channel, _, words_part = args.partition(' ')
-            channel = await converter.convert(ctx, channel)
-            words = [w.strip().lower() for w in words_part.split(',') if w.strip()]
-        except commands.BadArgument:
-            channel = ctx.channel
-            words = [w.strip().lower() for w in args.split(',') if w.strip()]
-        
-        async with self.config.guild(ctx.guild).channels() as channels:
-            channel_id = str(channel.id)
-            if channel_id not in channels:
-                channels[channel_id] = []
-            
-            added = []
-            for word in words:
-                if word not in channels[channel_id]:
-                    channels[channel_id].append(word)
-                    added.append(word)
-            
-            embed = discord.Embed(color=0x00ff00)
-            if added:
-                embed.title = f"✅ Added {len(added)} Words"
-                embed.description = f"To {channel.mention}'s filter"
-                embed.add_field(
-                    name="New Words",
-                    value=', '.join(f'`{word}`' for word in added) or "None",
-                    inline=False
-                )
-                current_words = '\n'.join(f'• `{w}`' for w in channels[channel_id]) or "None"
-                embed.add_field(
-                    name="Current Filter Words",
-                    value=', '.join(f'`{w}`' for w in channels[channel_id]) or "None",
                     inline=False
                 )
             else:
