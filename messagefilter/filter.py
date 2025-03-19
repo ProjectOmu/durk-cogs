@@ -337,9 +337,7 @@ class MessageFilter(commands.Cog):
                                     delete_after=120
                                 )
                                 except discord.Forbidden:
-                        except discord.Forbidden:
-                            pass
-    
+                                    pass
                         try:
                             await message.author.timeout(
                                 timedelta(seconds=20), 
