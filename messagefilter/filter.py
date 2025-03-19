@@ -191,38 +191,22 @@ class MessageFilter(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command()
-    async def ilovefriendship(self, ctx):
-        """Grants the Pegasister role"""
-        role_id = 1350605344769839194
+    async def ILOVEWARRIORS(self, ctx):
+        """Grants the Warrior role"""
+        role_id = 1351752263793774683
         role = ctx.guild.get_role(role_id)
         
         if not role:
-            return await ctx.send("❌ Pegasister role not found")
+            return await ctx.send("❌ Warrior role not found")
             
         if role in ctx.author.roles:
-            return await ctx.send("You already have the Pegasister role! 💖")
+            return await ctx.send("Youre already a warrior!")
             
         try:
             await ctx.author.add_roles(role)
-            await ctx.send("🌈✨ You've been granted the Pegasister role! Welcome to the club, you can never leave!")
+            await ctx.send("You've become a warrior! Welcome to the clan.")
         except discord.Forbidden:
             await ctx.send("❌ I don't have permissions to assign roles")
-
-    @commands.command()
-    async def ihatefriendship(self, ctx):
-        """Opt-out of message filtering until March 21, 2025"""
-        try:
-            timeout_until = datetime.fromtimestamp(1742533200, timezone.utc)
-            
-            await ctx.author.timeout(
-                timeout_until, 
-                reason="Event filter exemption"
-            )
-            await ctx.send(f"⏳ {ctx.author.mention} has been exempted from filtering until March 21, 2025")
-        except discord.Forbidden:
-            await ctx.send("❌ I need **Moderate Members** permission to do this")
-        except discord.HTTPException as e:
-            await ctx.send(f"❌ Error: {e}")
                 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -247,7 +231,7 @@ class MessageFilter(commands.Cog):
         for prefix in prefixes:
             if content.startswith(prefix.lower()):
                 cmd = content[len(prefix):].strip()
-                if cmd.startswith("filter list") or cmd.startswith("ilovefriendship") or cmd.startswith ("ihatefriendship"):
+                if cmd.startswith("filter list") or cmd.startswith("ILOVEWARRIORS"):
                     return
                     
         channels = await self.config.guild(message.guild).channels()        
@@ -275,7 +259,7 @@ class MessageFilter(commands.Cog):
 
                         try:
                             await message. author.timeout(
-                                timedelta(minutes=1), 
+                                timedelta(seconds=20), 
                                 reason=f"Filter violation in #{message.channel.name}"
                             )
                         except discord.Forbidden:
