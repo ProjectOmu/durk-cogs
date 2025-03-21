@@ -141,11 +141,30 @@ class MessageFilter(commands.Cog):
         
         async with self.config.guild(ctx.guild).channels() as channels:
             channel_id = str(channel.id)
+            
+            # Migrate legacy format if needed
+            if channel_id in channels and isinstance(channels[channel_id], list):
+                channels[channel_id] = {
+                    "words": channels[channel_id],
+                    "filtered_count": 0,
+                    "word_usage": {}
+                }
+                await self.config.guild(ctx.guild).channels.set(channels)
+            
+            if channel_id not in channels:
+                return await ctx.send(f"{channel.mention} is not being filtered")
+            
+            channel_data = channels[channel_id]
+            required_words = channel_data["words"]
             removed = []
+            
             for word in words:
-                if word in channels.get(channel_id, []):
-                    channels[channel_id].remove(word)
+                if word in required_words:
+                    required_words.remove(word)
                     removed.append(word)
+                    # Remove from word usage stats
+                    if word in channel_data["word_usage"]:
+                        del channel_data["word_usage"][word]
             
             embed = discord.Embed(color=0x00ff00)
             if removed:
@@ -157,13 +176,14 @@ class MessageFilter(commands.Cog):
                     inline=False
                 )
                 
-                remaining = channels.get(channel_id, [])
-                if remaining:
+                if required_words:
                     embed.add_field(
                         name="Remaining Words",
-                        value=', '.join(f'`{w}`' for w in remaining) or "None",
+                        value=', '.join(f'`{w}`' for w in required_words) or "None",
                         inline=False
                     )
+                    # Update the channel data
+                    channels[channel_id] = channel_data
                 else:
                     del channels[channel_id]
                     embed.add_field(
@@ -171,6 +191,8 @@ class MessageFilter(commands.Cog):
                         value="No words remaining in filter",
                         inline=False
                     )
+                
+                await self.config.guild(ctx.guild).channels.set(channels)
             else:
                 embed.title = "⏩ No Changes"
                 embed.description = "None of these words were in the filter"
