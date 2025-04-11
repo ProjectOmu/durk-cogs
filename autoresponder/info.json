@@ -1,6 +1,6 @@
 {
     "author" : ["Durk"],
-    "install_msg" : "w-why",
+    "install_msg" : "I just shit a little teehee",
     "name" : "Auto Responder",
     "short" : "WYSI, UPSTREAM MERGE, BASED ON WHAT.",
     "description" : "Responds with when you code it if a message ends with when, and based to based on what (with language support).",
