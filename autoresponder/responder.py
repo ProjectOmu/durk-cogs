@@ -25,9 +25,9 @@ class responder(commands.Cog):
 
 
         # Tetris
-        match = re.search(r".*tetris.*", message.content, re.IGNORECASE)
+        match = re.search(r".*upstream merge.*", message.content, re.IGNORECASE)
         if match:
-            await channel.send("*Nanotrasen Block Game:tm:")
+            await channel.send("https://cdn.discordapp.com/attachments/1323488538750353442/1360350319380533630/6ragpi.jpg?ex=67facc76&is=67f97af6&hm=f8402f80bf0b97b0019c0823441edf1119083ace85e363af5333f9d277351b77&")
 
         # WYCI
         match = re.search(r"\S\s+(?:when|whence)[\s*?.!)]*$", message.content, re.IGNORECASE)
