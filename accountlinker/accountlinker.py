@@ -19,10 +19,10 @@ async def get_linking_code_data(pool: asyncpg.Pool, code: uuid.UUID):
     conn = await pool.acquire()
     try:
         query = """
-            SELECT lc."PlayerId", p."LastSeenUserName", lc."CreationTime"
-            FROM "rmc_linking_codes" lc
-            JOIN "Player" p ON lc."PlayerId" = p."UserId"
-            WHERE lc."Code" = $1;
+            SELECT lc.player_id, p.last_seen_user_name, lc.creation_time
+            FROM rmc_linking_codes lc
+            JOIN player p ON lc.player_id = p.user_id
+            WHERE lc.code = $1;
         """
         return await conn.fetchrow(query, code)
     finally:
@@ -32,23 +32,23 @@ async def get_discord_link_data(pool: asyncpg.Pool, discord_id: int):
     conn = await pool.acquire()
     try:
         query = """
-            SELECT da."Id", la."PlayerId"
-            FROM "rmc_discord_accounts" da
-            LEFT JOIN "rmc_linked_accounts" la ON da."Id" = la."DiscordId"
-            WHERE da."Id" = $1;
+            SELECT da.id, la.player_id
+            FROM rmc_discord_accounts da
+            LEFT JOIN rmc_linked_accounts la ON da.id = la.discord_id
+            WHERE da.id = $1;
         """
         return await conn.fetchrow(query, discord_id)
     finally:
         await pool.release(conn)
 
 async def remove_patron_and_link(conn: asyncpg.Connection, player_id: uuid.UUID):
-    await conn.execute('DELETE FROM "rmc_patrons" WHERE "PlayerId" = $1;', player_id)
-    await conn.execute('DELETE FROM "rmc_linked_accounts" WHERE "PlayerId" = $1;', player_id)
+    await conn.execute('DELETE FROM rmc_patrons WHERE player_id = $1;', player_id)
+    await conn.execute('DELETE FROM rmc_linked_accounts WHERE player_id = $1;', player_id)
 
 async def get_patron_tiers(pool: asyncpg.Pool):
     conn = await pool.acquire()
     try:
-        query = 'SELECT "Id", "DiscordRole", "Name", "Priority" FROM "rmc_patron_tiers" ORDER BY "Priority" ASC;'
+        query = 'SELECT id, discord_role, name, priority FROM rmc_patron_tiers ORDER BY priority ASC;'
         return await conn.fetch(query)
     finally:
         await pool.release(conn)
@@ -58,22 +58,22 @@ async def perform_linking(pool: asyncpg.Pool, discord_id: int, player_id: uuid.U
     try:
         async with conn.transaction():
             await conn.execute("""
-                INSERT INTO "rmc_discord_accounts" ("Id")
+                INSERT INTO rmc_discord_accounts (id)
                 VALUES ($1)
-                ON CONFLICT ("Id") DO NOTHING;
+                ON CONFLICT (id) DO NOTHING;
             """, discord_id)
             await conn.execute("""
-                INSERT INTO "rmc_linked_accounts" ("DiscordId", "PlayerId")
+                INSERT INTO rmc_linked_accounts (discord_id, player_id)
                 VALUES ($1, $2);
             """, discord_id, player_id)
             if tier_id is not None:
                 await conn.execute("""
-                    INSERT INTO "rmc_patrons" ("PlayerId", "TierId")
+                    INSERT INTO rmc_patrons (player_id, tier_id)
                     VALUES ($1, $2)
-                    ON CONFLICT ("PlayerId") DO UPDATE SET "TierId" = $2;
+                    ON CONFLICT (player_id) DO UPDATE SET tier_id = $2;
                 """, player_id, tier_id)
             await conn.execute("""
-                INSERT INTO "rmc_linked_accounts_logs" ("DiscordId", "PlayerId", "At")
+                INSERT INTO rmc_linked_accounts_logs (discord_id, player_id, at)
                 VALUES ($1, $2, $3);
             """, discord_id, player_id, datetime.now(timezone.utc))
         return True
@@ -87,12 +87,12 @@ async def perform_unlinking(pool: asyncpg.Pool, discord_id: int):
     conn = await pool.acquire()
     try:
         async with conn.transaction():
-            linked_data = await conn.fetchrow('SELECT "PlayerId" FROM "rmc_linked_accounts" WHERE "DiscordId" = $1;', discord_id)
+            linked_data = await conn.fetchrow('SELECT player_id FROM rmc_linked_accounts WHERE discord_id = $1;', discord_id)
             if not linked_data:
                 return False
-            player_id = linked_data["PlayerId"]
-            await conn.execute('DELETE FROM "rmc_patrons" WHERE "PlayerId" = $1;', player_id)
-            await conn.execute('DELETE FROM "rmc_linked_accounts" WHERE "DiscordId" = $1;', discord_id)
+            player_id = linked_data["player_id"]
+            await conn.execute('DELETE FROM rmc_patrons WHERE player_id = $1;', player_id)
+            await conn.execute('DELETE FROM rmc_linked_accounts WHERE discord_id = $1;', discord_id)
         return True
     except Exception as e:
         log.error(f"Error during unlinking transaction for Discord ID {discord_id}: {e}", exc_info=True)
@@ -134,18 +134,19 @@ class LinkAccountModal(Modal, title="Link SS14 Account"):
             if not code_data:
                 await interaction.followup.send(f"No player found with code `{code_str}`. Please ensure it's correct and hasn't expired.", ephemeral=True)
                 return
-            if code_data["CreationTime"].replace(tzinfo=timezone.utc) < datetime.now(timezone.utc) - timedelta(days=1):
+            # Use lowercase snake_case keys from fetchrow result
+            if code_data["creation_time"].replace(tzinfo=timezone.utc) < datetime.now(timezone.utc) - timedelta(days=1):
                  await interaction.followup.send(f"Code `{code_str}` was generated too long ago. Please get a new one.", ephemeral=True)
                  return
 
-            player_id_to_link = code_data["PlayerId"]
-            player_name = code_data["LastSeenUserName"]
+            player_id_to_link = code_data["player_id"]
+            player_name = code_data["last_seen_user_name"]
             discord_user = interaction.user
 
             existing_link = await get_discord_link_data(pool, discord_user.id)
 
-            if existing_link and existing_link["PlayerId"] is not None:
-                existing_player_id = existing_link["PlayerId"]
+            if existing_link and existing_link["player_id"] is not None:
+                existing_player_id = existing_link["player_id"]
                 log.info(f"User {discord_user.id} already linked to player {existing_player_id} in Guild {self.guild_id}. Unlinking previous...")
                 conn = await pool.acquire()
                 try:
@@ -165,9 +166,9 @@ class LinkAccountModal(Modal, title="Link SS14 Account"):
                 db_tiers = await get_patron_tiers(pool)
                 user_role_ids = {role.id for role in discord_user.roles}
                 for tier in db_tiers:
-                    if tier["DiscordRole"] in user_role_ids:
-                        patron_tier_id = tier["Id"]
-                        highest_priority_tier_name = tier["Name"]
+                    if tier["discord_role"] in user_role_ids:
+                        patron_tier_id = tier["id"]
+                        highest_priority_tier_name = tier["name"]
                         log.info(f"User {discord_user.id} has patron role for tier {highest_priority_tier_name} (ID: {patron_tier_id}) in Guild {self.guild_id}.")
                         break
 
@@ -291,7 +292,7 @@ class AccountLinker(commands.Cog):
             if not conn_string:
                 log.warning(f"Config dictionary check returned NO database connection string set for Guild {guild_id}.")
                 return None
-                
+
             try:
                 log.info(f"Creating database connection pool for Guild {guild_id}...")
                 pool = await asyncpg.create_pool(conn_string, min_size=2, max_size=10)
@@ -367,15 +368,15 @@ class AccountLinker(commands.Cog):
         conn = await pool.acquire()
         try:
             query = """
-                SELECT p."LastSeenUserName"
-                FROM "rmc_linked_accounts" la
-                JOIN "Player" p ON la."PlayerId" = p."UserId"
-                WHERE la."DiscordId" = $1;
+                SELECT p.last_seen_user_name
+                FROM rmc_linked_accounts la
+                JOIN player p ON la.player_id = p.user_id
+                WHERE la.discord_id = $1;
             """
             result = await conn.fetchrow(query, target_member.id)
 
             if result:
-                await ctx.send(f"{target_member.mention} is linked to SS14 account: **{result['LastSeenUserName']}**")
+                await ctx.send(f"{target_member.mention} is linked to SS14 account: **{result['last_seen_user_name']}**")
             else:
                 await ctx.send(f"{target_member.mention} does not have an SS14 account linked.")
         except asyncpg.PostgresError as db_err:
@@ -403,7 +404,7 @@ class AccountLinker(commands.Cog):
         else:
             conn = await pool.acquire()
             try:
-                is_linked = await conn.fetchval('SELECT 1 FROM "rmc_linked_accounts" WHERE "DiscordId" = $1;', ctx.author.id)
+                is_linked = await conn.fetchval('SELECT 1 FROM rmc_linked_accounts WHERE discord_id = $1;', ctx.author.id)
                 if is_linked:
                      await ctx.send("An error occurred while trying to unlink your account. Please try again later.", ephemeral=True)
                 else:
@@ -450,17 +451,17 @@ class AccountLinker(commands.Cog):
             conn = None
             try:
                 conn = await pool.acquire()
-                tiers = await conn.fetch('SELECT "Id", "DiscordRole", "Name", "Priority" FROM "RMCPatronTiers" ORDER BY "Priority" ASC;')
+                tiers = await conn.fetch('SELECT id, discord_role, name, priority FROM rmc_patron_tiers ORDER BY priority ASC;')
                 if not tiers:
                     log.warning(f"Patron sync task: No patron tiers found in database for Guild {guild_id}.")
                     await pool.release(conn)
                     continue
 
                 linked_accounts = await conn.fetch("""
-                    SELECT la."DiscordId", la."PlayerId", p."LastSeenUserName", pat."TierId" as "CurrentTierId"
-                    FROM "rmc_linked_accounts" la
-                    JOIN "Player" p ON la."PlayerId" = p."UserId"
-                    LEFT JOIN "rmc_patrons" pat ON la."PlayerId" = pat."PlayerId";
+                    SELECT la.discord_id, la.player_id, p.last_seen_user_name, pat.tier_id as current_tier_id
+                    FROM rmc_linked_accounts la
+                    JOIN player p ON la.player_id = p.user_id
+                    LEFT JOIN rmc_patrons pat ON la.player_id = pat.player_id;
                 """)
 
                 updated_count = 0
@@ -468,10 +469,10 @@ class AccountLinker(commands.Cog):
                 added_count = 0
 
                 for link in linked_accounts:
-                    discord_id = link["DiscordId"]
-                    player_id = link["PlayerId"]
-                    current_db_tier_id = link["CurrentTierId"]
-                    player_name = link["LastSeenUserName"]
+                    discord_id = link["discord_id"]
+                    player_id = link["player_id"]
+                    current_db_tier_id = link["current_tier_id"]
+                    player_name = link["last_seen_user_name"]
 
                     member = guild.get_member(discord_id)
 
@@ -481,20 +482,20 @@ class AccountLinker(commands.Cog):
                     if member:
                         user_role_ids = {role.id for role in member.roles}
                         for tier in tiers:
-                            if tier["DiscordRole"] in user_role_ids:
-                                highest_priority_role_tier_id = tier["Id"]
-                                highest_priority_role_tier_name = tier["Name"]
+                            if tier["discord_role"] in user_role_ids:
+                                highest_priority_role_tier_id = tier["id"]
+                                highest_priority_role_tier_name = tier["name"]
                                 break
 
                     if highest_priority_role_tier_id != current_db_tier_id:
                         async with conn.transaction():
                             if current_db_tier_id is not None:
-                                await conn.execute('DELETE FROM "rmc_patrons" WHERE "PlayerId" = $1;', player_id)
+                                await conn.execute('DELETE FROM rmc_patrons WHERE player_id = $1;', player_id)
                                 removed_count +=1
                                 log.info(f"Patron sync (Guild {guild_id}): Removed patron status for {player_name} ({player_id}) / Discord {discord_id}. Reason: Role changed or user left guild.")
                             if highest_priority_role_tier_id is not None:
                                 await conn.execute("""
-                                    INSERT INTO "rmc_patrons" ("PlayerId", "TierId") VALUES ($1, $2);
+                                    INSERT INTO rmc_patrons (player_id, tier_id) VALUES ($1, $2);
                                 """, player_id, highest_priority_role_tier_id)
                                 added_count +=1
                                 log.info(f"Patron sync (Guild {guild_id}): Added/Updated patron status for {player_name} ({player_id}) / Discord {discord_id} to tier {highest_priority_role_tier_name} (ID: {highest_priority_role_tier_id}).")
