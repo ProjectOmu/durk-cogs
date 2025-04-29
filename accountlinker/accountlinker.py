@@ -16,7 +16,6 @@ from discord import Interaction, ButtonStyle, TextStyle
 log = logging.getLogger("red.DurkCogs.AccountLinker")
 
 async def get_linking_code_data(pool: asyncpg.Pool, code: uuid.UUID):
-    """Fetches linking code data and associated player info."""
     conn = await pool.acquire()
     try:
         query = """
@@ -30,11 +29,10 @@ async def get_linking_code_data(pool: asyncpg.Pool, code: uuid.UUID):
         await pool.release(conn)
 
 async def get_discord_link_data(pool: asyncpg.Pool, discord_id: int):
-    """Fetches existing link data for a Discord user."""
     conn = await pool.acquire()
     try:
         query = """
-            SELECT da."Id", la."PlayerId" -- Key is PlayerId, not Id
+            SELECT da."Id", la."PlayerId"
             FROM "rmc_discord_accounts" da
             LEFT JOIN "rmc_linked_accounts" la ON da."Id" = la."DiscordId"
             WHERE da."Id" = $1;
@@ -44,12 +42,10 @@ async def get_discord_link_data(pool: asyncpg.Pool, discord_id: int):
         await pool.release(conn)
 
 async def remove_patron_and_link(conn: asyncpg.Connection, player_id: uuid.UUID):
-    """Removes patron status and the existing link based on PlayerId. Runs within a transaction."""
     await conn.execute('DELETE FROM "rmc_patrons" WHERE "PlayerId" = $1;', player_id)
     await conn.execute('DELETE FROM "rmc_linked_accounts" WHERE "PlayerId" = $1;', player_id)
 
 async def get_patron_tiers(pool: asyncpg.Pool):
-    """Fetches all patron tiers ordered by priority."""
     conn = await pool.acquire()
     try:
         query = 'SELECT "Id", "DiscordRole", "Name", "Priority" FROM "rmc_patron_tiers" ORDER BY "Priority" ASC;'
@@ -58,7 +54,6 @@ async def get_patron_tiers(pool: asyncpg.Pool):
         await pool.release(conn)
 
 async def perform_linking(pool: asyncpg.Pool, discord_id: int, player_id: uuid.UUID, tier_id: int | None):
-    """Creates the discord account, link, and patron entry within a transaction."""
     conn = await pool.acquire()
     try:
         async with conn.transaction():
@@ -78,7 +73,7 @@ async def perform_linking(pool: asyncpg.Pool, discord_id: int, player_id: uuid.U
                     ON CONFLICT ("PlayerId") DO UPDATE SET "TierId" = $2;
                 """, player_id, tier_id)
             await conn.execute("""
-                INSERT INTO "rmc_linked_accounts_logs" ("DiscordId", "PlayerId", "At") -- Column is "At"
+                INSERT INTO "rmc_linked_accounts_logs" ("DiscordId", "PlayerId", "At")
                 VALUES ($1, $2, $3);
             """, discord_id, player_id, datetime.now(timezone.utc))
         return True
@@ -89,7 +84,6 @@ async def perform_linking(pool: asyncpg.Pool, discord_id: int, player_id: uuid.U
         await pool.release(conn)
 
 async def perform_unlinking(pool: asyncpg.Pool, discord_id: int):
-    """Removes link and patron status for a Discord user."""
     conn = await pool.acquire()
     try:
         async with conn.transaction():
@@ -149,7 +143,7 @@ class LinkAccountModal(Modal, title="Link SS14 Account"):
             discord_user = interaction.user
 
             existing_link = await get_discord_link_data(pool, discord_user.id)
-            
+
             if existing_link and existing_link["PlayerId"] is not None:
                 existing_player_id = existing_link["PlayerId"]
                 log.info(f"User {discord_user.id} already linked to player {existing_player_id} in Guild {self.guild_id}. Unlinking previous...")
@@ -164,7 +158,7 @@ class LinkAccountModal(Modal, title="Link SS14 Account"):
                     return
                 finally:
                     await pool.release(conn)
-                    
+
             patron_tier_id = None
             highest_priority_tier_name = None
             if isinstance(discord_user, discord.Member):
@@ -221,16 +215,22 @@ class DbConfigModal(Modal, title="Database Configuration"):
         if not port.isdigit():
             await interaction.followup.send("Port must be a number.", ephemeral=True)
             return
-            
+
         encoded_password = urllib.parse.quote(password)
 
         connection_string = f"postgresql://{username}:{encoded_password}@{host}:{port}/{dbname}"
 
         log.info(f"Attempting to set DB string for Guild {self.guild_id} (constructed from modal).")
-        
+
         await self.cog.close_guild_pool(self.guild_id)
 
-        await self.cog.config.guild_from_id(self.guild_id).db_connection_string.set(connection_string)
+        try:
+            await self.cog.config.guild_from_id(self.guild_id).db_connection_string.set(connection_string)
+            log.info(f"Saved connection string for Guild {self.guild_id} to config.")
+        except Exception as e:
+            log.error(f"Failed to save connection string for Guild {self.guild_id} to config: {e}", exc_info=True)
+            await interaction.followup.send("An error occurred while saving the configuration.", ephemeral=True)
+            return
 
         pool = await self.cog.get_pool_for_guild(self.guild_id)
 
@@ -267,9 +267,8 @@ class AccountLinker(commands.Cog):
         self.pool_locks: Dict[int, asyncio.Lock] = {}
         self.bot.add_view(LinkAccountView(self))
         self.patron_sync_task.start()
-        
+
     async def get_pool_for_guild(self, guild_id: int) -> Optional[asyncpg.Pool]:
-        """Gets or creates the connection pool for a specific guild."""
         if guild_id in self.guild_pools:
             return self.guild_pools[guild_id]
 
@@ -279,10 +278,12 @@ class AccountLinker(commands.Cog):
         async with self.pool_locks[guild_id]:
             if guild_id in self.guild_pools:
                 return self.guild_pools[guild_id]
-                
+
+            log.debug(f"Attempting to retrieve DB string for Guild {guild_id}...")
             conn_string = await self.config.guild_from_id(guild_id).db_connection_string()
+            log.debug(f"Retrieved raw value for db_connection_string for Guild {guild_id}: {conn_string!r}")
             if not conn_string:
-                log.warning(f"No database connection string set for Guild {guild_id}.")
+                log.warning(f"Config check returned NO database connection string set for Guild {guild_id}.")
                 return None
 
             try:
@@ -301,7 +302,6 @@ class AccountLinker(commands.Cog):
                  return None
 
     async def close_guild_pool(self, guild_id: int):
-        """Closes the connection pool for a specific guild."""
         if guild_id in self.guild_pools:
             pool = self.guild_pools.pop(guild_id)
             if pool:
@@ -312,7 +312,6 @@ class AccountLinker(commands.Cog):
 
 
     async def cog_unload(self):
-        """Clean up resources when the cog is unloaded."""
         self.patron_sync_task.cancel()
         guild_ids = list(self.guild_pools.keys())
         for guild_id in guild_ids:
@@ -321,7 +320,7 @@ class AccountLinker(commands.Cog):
 
     @app_commands.command(name="linkersetdb")
     @app_commands.guild_only()
-    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.checks.has_permissions(manage_guild=True)
     @app_commands.describe()
     async def linkersetdb_slash(self, interaction: discord.Interaction):
         """Opens a modal to configure the database connection for this server (Admins only)."""
@@ -337,7 +336,7 @@ class AccountLinker(commands.Cog):
         """Posts the account linking button message."""
         pool = await self.get_pool_for_guild(ctx.guild.id)
         if not pool:
-             await ctx.send("The database connection is not configured for this server. Use `[p]linkersetdb` first.", ephemeral=True)
+             await ctx.send("The database connection is not configured for this server. Use `/linkersetdb` first.", ephemeral=True)
              return
 
         view = LinkAccountView(self)
@@ -409,10 +408,21 @@ class AccountLinker(commands.Cog):
     @tasks.loop(minutes=5.0)
     async def patron_sync_task(self):
         """Periodically synchronizes patron status based on Discord roles for all configured guilds."""
-        all_guild_data = await self.config.all_guilds()
-        configured_guild_ids = [
-            guild_id for guild_id, data in all_guild_data.items() if data.get("db_connection_string")
-        ]
+        try:
+            all_guild_data = await self.config.all_guilds()
+            log.debug(f"Patron sync task: Raw all_guilds data: {all_guild_data!r}")
+        except Exception as e:
+            log.error(f"Patron sync task: Failed to retrieve all_guilds config: {e}", exc_info=True)
+            return
+
+        configured_guild_ids = []
+        for guild_id, data in all_guild_data.items():
+            if isinstance(data, dict) and data.get("db_connection_string"):
+                 configured_guild_ids.append(guild_id)
+                 log.debug(f"Patron sync task: Found configured DB string for Guild {guild_id}")
+            else:
+                 log.debug(f"Patron sync task: No DB string found in data for Guild {guild_id}. Data: {data!r}")
+
 
         if not configured_guild_ids:
             return
@@ -439,7 +449,7 @@ class AccountLinker(commands.Cog):
                     log.warning(f"Patron sync task: No patron tiers found in database for Guild {guild_id}.")
                     await pool.release(conn)
                     continue
-                    
+
                 linked_accounts = await conn.fetch("""
                     SELECT la."DiscordId", la."PlayerId", p."LastSeenUserName", pat."TierId" as "CurrentTierId"
                     FROM "rmc_linked_accounts" la
@@ -501,6 +511,5 @@ class AccountLinker(commands.Cog):
 
     @patron_sync_task.before_loop
     async def before_patron_sync_task(self):
-        """Wait until the bot is ready."""
         await self.bot.wait_until_ready()
         log.info("Patron sync task starting loop...")
