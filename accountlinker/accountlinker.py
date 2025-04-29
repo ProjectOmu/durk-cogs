@@ -32,10 +32,10 @@ async def get_discord_link_data(pool: asyncpg.Pool, discord_id: int):
     conn = await pool.acquire()
     try:
         query = """
-            SELECT da.id, la.player_id
+            SELECT da.rmc_discord_accounts_id, la.player_id
             FROM rmc_discord_accounts da
-            LEFT JOIN rmc_linked_accounts la ON da.id = la.discord_id
-            WHERE da.id = $1;
+            LEFT JOIN rmc_linked_accounts la ON da.rmc_discord_accounts_id = la.discord_id
+            WHERE da.rmc_discord_accounts_id = $1;
         """
         return await conn.fetchrow(query, discord_id)
     finally:
