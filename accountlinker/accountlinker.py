@@ -48,7 +48,7 @@ async def remove_patron_and_link(conn: asyncpg.Connection, player_id: uuid.UUID)
 async def get_patron_tiers(pool: asyncpg.Pool):
     conn = await pool.acquire()
     try:
-        query = 'SELECT id, discord_role, name, priority FROM rmc_patron_tiers ORDER BY priority ASC;'
+        query = 'SELECT rmc_patron_tiers_id, discord_role, name, priority FROM rmc_patron_tiers ORDER BY priority ASC;'
         return await conn.fetch(query)
     finally:
         await pool.release(conn)
