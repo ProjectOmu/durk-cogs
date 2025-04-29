@@ -319,16 +319,16 @@ class AccountLinker(commands.Cog):
             await self.close_guild_pool(guild_id)
         log.info("All guild database connection pools closed.")
 
-    @commands.hybrid_command(name="linkersetdb")
-    @commands.guild_only()
-    @commands.admin_or_permissions(manage_guild=True)
+    @app_commands.command(name="linkersetdb")
+    @app_commands.guild_only()
+    @app_commands.checks.admin_or_permissions(manage_guild=True)
     @app_commands.describe()
-    async def linkersetdb(self, ctx: commands.Context):
+    async def linkersetdb_slash(self, interaction: discord.Interaction):
         """Opens a modal to configure the database connection for this server (Admins only)."""
-        if ctx.interaction:
-            await ctx.interaction.response.send_modal(DbConfigModal(self, ctx.guild.id))
-        else:
-            await ctx.send("This command must be used as a slash command (`/linkersetdb`) to open the configuration modal.", ephemeral=True)
+        if not interaction.guild_id:
+             await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
+             return
+        await interaction.response.send_modal(DbConfigModal(self, interaction.guild_id))
 
     @commands.admin_or_permissions(manage_guild=True)
     @commands.command()
