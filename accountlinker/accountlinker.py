@@ -279,13 +279,19 @@ class AccountLinker(commands.Cog):
             if guild_id in self.guild_pools:
                 return self.guild_pools[guild_id]
 
-            log.debug(f"Attempting to retrieve DB string for Guild {guild_id}...")
-            conn_string = await self.config.guild_from_id(guild_id).db_connection_string()
-            log.debug(f"Retrieved raw value for db_connection_string for Guild {guild_id}: {conn_string!r}")
+            log.debug(f"Attempting to retrieve DB config dict for Guild {guild_id}...")
+            try:
+                guild_data = await self.config.guild_from_id(guild_id).all()
+                log.debug(f"Retrieved guild config dict for Guild {guild_id}: {guild_data!r}")
+                conn_string = guild_data.get("db_connection_string")
+            except Exception as e:
+                 log.error(f"Error retrieving config dictionary for Guild {guild_id}: {e}", exc_info=True)
+                 conn_string = None
+            log.debug(f"Value for 'db_connection_string' in Guild {guild_id}: {conn_string!r}")
             if not conn_string:
-                log.warning(f"Config check returned NO database connection string set for Guild {guild_id}.")
+                log.warning(f"Config dictionary check returned NO database connection string set for Guild {guild_id}.")
                 return None
-
+                
             try:
                 log.info(f"Creating database connection pool for Guild {guild_id}...")
                 pool = await asyncpg.create_pool(conn_string, min_size=2, max_size=10)
