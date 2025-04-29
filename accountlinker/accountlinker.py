@@ -58,9 +58,9 @@ async def perform_linking(pool: asyncpg.Pool, discord_id: int, player_id: uuid.U
     try:
         async with conn.transaction():
             await conn.execute("""
-                INSERT INTO rmc_discord_accounts (id)
+                INSERT INTO rmc_discord_accounts (rmc_discord_accounts_id)
                 VALUES ($1)
-                ON CONFLICT (id) DO NOTHING;
+                ON CONFLICT (rmc_discord_accounts_id) DO NOTHING;
             """, discord_id)
             await conn.execute("""
                 INSERT INTO rmc_linked_accounts (discord_id, player_id)
