@@ -485,7 +485,7 @@ class AccountLinker(commands.Cog):
                         user_role_ids = {role.id for role in member.roles}
                         for tier in tiers:
                             if tier["discord_role"] in user_role_ids:
-                                highest_priority_role_tier_id = tier["id"]
+                                highest_priority_role_tier_id = tier["rmc_patreon_tiers_id"]
                                 highest_priority_role_tier_name = tier["name"]
                                 break
 
