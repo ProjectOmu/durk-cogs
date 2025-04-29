@@ -321,7 +321,7 @@ class AccountLinker(commands.Cog):
 
     @app_commands.command(name="linkersetdb")
     @app_commands.guild_only()
-    @app_commands.checks.admin_or_permissions(manage_guild=True)
+    @app_commands.checks.has_permissions(manage_guild=True)
     @app_commands.describe()
     async def linkersetdb_slash(self, interaction: discord.Interaction):
         """Opens a modal to configure the database connection for this server (Admins only)."""
