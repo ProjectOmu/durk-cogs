@@ -416,7 +416,7 @@ class AccountLinker(commands.Cog):
         """Periodically synchronizes patron status based on Discord roles for all configured guilds."""
         try:
             all_guild_data = await self.config.all_guilds()
-            log.debug(f"Patron sync task: Raw all_guilds data (Identifier: {self.config.identifier}): {all_guild_data!r}")
+            log.debug(f"Patron sync task: Raw all_guilds data: {all_guild_data!r}")
         except Exception as e:
             log.error(f"Patron sync task: Failed to retrieve all_guilds config: {e}", exc_info=True)
             return
