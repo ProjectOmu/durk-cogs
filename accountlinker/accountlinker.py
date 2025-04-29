@@ -134,7 +134,6 @@ class LinkAccountModal(Modal, title="Link SS14 Account"):
             if not code_data:
                 await interaction.followup.send(f"No player found with code `{code_str}`. Please ensure it's correct and hasn't expired.", ephemeral=True)
                 return
-            # Use lowercase snake_case keys from fetchrow result
             if code_data["creation_time"].replace(tzinfo=timezone.utc) < datetime.now(timezone.utc) - timedelta(days=1):
                  await interaction.followup.send(f"Code `{code_str}` was generated too long ago. Please get a new one.", ephemeral=True)
                  return
@@ -227,7 +226,7 @@ class DbConfigModal(Modal, title="Database Configuration"):
 
         try:
             await self.cog.config.guild_from_id(self.guild_id).db_connection_string.set(connection_string)
-            log.info(f"Saved connection string for Guild {self.guild_id} to config.")
+            log.info(f"Saved connection string for Guild {self.guild_id} to config (Identifier: {self.cog.config.identifier}).")
         except Exception as e:
             log.error(f"Failed to save connection string for Guild {self.guild_id} to config: {e}", exc_info=True)
             await interaction.followup.send("An error occurred while saving the configuration.", ephemeral=True)
@@ -262,7 +261,7 @@ class AccountLinker(commands.Cog):
 
     def __init__(self, bot: Red):
         self.bot = bot
-        self.config = Config.get_conf(self, identifier=hash("DurkAccountLinkerMultiDB"), force_registration=True)
+        self.config = Config.get_conf(self, identifier="AccountLinkerMultiDB", force_registration=True)
         self.config.register_guild(**self.DEFAULT_GUILD)
         self.guild_pools: Dict[int, asyncpg.Pool] = {}
         self.pool_locks: Dict[int, asyncio.Lock] = {}
@@ -280,7 +279,7 @@ class AccountLinker(commands.Cog):
             if guild_id in self.guild_pools:
                 return self.guild_pools[guild_id]
 
-            log.debug(f"Attempting to retrieve DB config dict for Guild {guild_id}...")
+            log.debug(f"Attempting to retrieve DB config dict for Guild {guild_id} (Identifier: {self.config.identifier})...")
             try:
                 guild_data = await self.config.guild_from_id(guild_id).all()
                 log.debug(f"Retrieved guild config dict for Guild {guild_id}: {guild_data!r}")
@@ -417,7 +416,7 @@ class AccountLinker(commands.Cog):
         """Periodically synchronizes patron status based on Discord roles for all configured guilds."""
         try:
             all_guild_data = await self.config.all_guilds()
-            log.debug(f"Patron sync task: Raw all_guilds data: {all_guild_data!r}")
+            log.debug(f"Patron sync task: Raw all_guilds data (Identifier: {self.config.identifier}): {all_guild_data!r}")
         except Exception as e:
             log.error(f"Patron sync task: Failed to retrieve all_guilds config: {e}", exc_info=True)
             return
@@ -425,8 +424,11 @@ class AccountLinker(commands.Cog):
         configured_guild_ids = []
         for guild_id, data in all_guild_data.items():
             if isinstance(data, dict) and data.get("db_connection_string"):
-                 configured_guild_ids.append(guild_id)
-                 log.debug(f"Patron sync task: Found configured DB string for Guild {guild_id}")
+                 try:
+                      configured_guild_ids.append(int(guild_id))
+                      log.debug(f"Patron sync task: Found configured DB string for Guild {guild_id}")
+                 except ValueError:
+                      log.warning(f"Patron sync task: Found non-integer guild ID key in config: {guild_id}")
             else:
                  log.debug(f"Patron sync task: No DB string found in data for Guild {guild_id}. Data: {data!r}")
 
