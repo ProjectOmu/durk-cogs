@@ -504,7 +504,3 @@ class AccountLinker(commands.Cog):
         """Wait until the bot is ready."""
         await self.bot.wait_until_ready()
         log.info("Patron sync task starting loop...")
-
-async def setup(bot: Red):
-    cog = AccountLinker(bot)
-    await bot.add_cog(cog)
