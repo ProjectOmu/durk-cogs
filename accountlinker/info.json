@@ -1,0 +1,21 @@
+{
+    "author": [
+        "Durk"
+    ],
+    "install_msg": "Thank you for installing the AccountLinker cog! Use `[p]help AccountLinker` for commands.",
+    "name": "AccountLinker",
+    "short": "Links SS14 game accounts to Discord users.",
+    "description": "A cog to manage linking Space Station 14 game accounts to Discord user accounts across multiple servers.",
+    "tags": [
+        "ss14",
+        "linking",
+        "utility",
+        "game"
+    ],
+    "requirements": [
+        "asyncpg"
+    ],
+    "required_cogs": {},
+    "min_bot_version": "3.5.0",
+    "end_user_data_statement": "This cog stores Discord user IDs and provided game account identifiers necessary for the linking functionality, mapped per server."
+}
