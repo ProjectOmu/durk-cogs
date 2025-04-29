@@ -7,11 +7,11 @@ import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
-from redbot.core import commands, Config, checks
+from redbot.core import commands, Config, checks, app_commands
 from redbot.core.bot import Red
 from discord.ext import tasks
 from discord.ui import Button, View, Modal, TextInput
-from discord import Interaction, ButtonStyle, TextStyle, app_commands
+from discord import Interaction, ButtonStyle, TextStyle
 
 log = logging.getLogger("red.DurkCogs.AccountLinker")
 
@@ -318,12 +318,15 @@ class AccountLinker(commands.Cog):
         log.info("All guild database connection pools closed.")
 
     @commands.hybrid_command(name="linkersetdb")
-    @commands.guild_only()
-    @commands.admin_or_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    @app_commands.admin_or_permissions(manage_guild=True)
     @app_commands.describe()
     async def linkersetdb(self, ctx: commands.Context):
         """Opens a modal to configure the database connection for this server (Admins only)."""
-        await interaction.response.send_modal(DbConfigModal(self, ctx.guild.id))
+        if ctx.interaction:
+            await ctx.interaction.response.send_modal(DbConfigModal(self, ctx.guild.id))
+        else:
+            await ctx.send("This command must be used as a slash command (`/linkersetdb`) to open the configuration modal.", ephemeral=True)
 
     @commands.admin_or_permissions(manage_guild=True)
     @commands.command()
