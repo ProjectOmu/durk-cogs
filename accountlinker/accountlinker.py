@@ -226,7 +226,7 @@ class DbConfigModal(Modal, title="Database Configuration"):
 
         try:
             await self.cog.config.guild_from_id(self.guild_id).db_connection_string.set(connection_string)
-            log.info(f"Saved connection string for Guild {self.guild_id} to config (Identifier: {self.cog.config.identifier}).")
+            log.info(f"Saved connection string for Guild {self.guild_id} to config.")
         except Exception as e:
             log.error(f"Failed to save connection string for Guild {self.guild_id} to config: {e}", exc_info=True)
             await interaction.followup.send("An error occurred while saving the configuration.", ephemeral=True)
@@ -279,7 +279,7 @@ class AccountLinker(commands.Cog):
             if guild_id in self.guild_pools:
                 return self.guild_pools[guild_id]
 
-            log.debug(f"Attempting to retrieve DB config dict for Guild {guild_id} (Identifier: {self.config.identifier})...")
+            log.debug(f"Attempting to retrieve DB config dict for Guild {guild_id}...")
             try:
                 guild_data = await self.config.guild_from_id(guild_id).all()
                 log.debug(f"Retrieved guild config dict for Guild {guild_id}: {guild_data!r}")
