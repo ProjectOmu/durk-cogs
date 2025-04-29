@@ -11,7 +11,7 @@ from redbot.core import commands, Config, checks, app_commands
 from redbot.core.bot import Red
 from discord.ext import tasks
 from discord.ui import Button, View, Modal, TextInput
-from discord import Interaction, ButtonStyle, TextStyle, app_commands
+from discord import Interaction, ButtonStyle, TextStyle
 
 log = logging.getLogger("red.DurkCogs.AccountLinker")
 
