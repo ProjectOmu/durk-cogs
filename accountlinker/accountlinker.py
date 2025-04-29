@@ -323,7 +323,7 @@ class AccountLinker(commands.Cog):
     @app_commands.describe()
     async def linkersetdb(self, ctx: commands.Context):
         """Opens a modal to configure the database connection for this server (Admins only)."""
-        await ctx.send_modal(DbConfigModal(self, ctx.guild.id))
+        await interaction.response.send_modal(DbConfigModal(self, ctx.guild.id))
 
     @commands.admin_or_permissions(manage_guild=True)
     @commands.command()
