@@ -166,7 +166,7 @@ class LinkAccountModal(Modal, title="Link SS14 Account"):
                 user_role_ids = {role.id for role in discord_user.roles}
                 for tier in db_tiers:
                     if tier["discord_role"] in user_role_ids:
-                        patron_tier_id = tier["id"]
+                        patron_tier_id = tier["rmc_patron_tiers_id"]
                         highest_priority_tier_name = tier["name"]
                         log.info(f"User {discord_user.id} has patron role for tier {highest_priority_tier_name} (ID: {patron_tier_id}) in Guild {self.guild_id}.")
                         break
