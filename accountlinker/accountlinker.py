@@ -3,6 +3,7 @@ import asyncpg
 import logging
 import uuid
 import asyncio
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
@@ -193,7 +194,49 @@ class LinkAccountModal(Modal, title="Link SS14 Account"):
         except Exception as e:
             log.error(f"Unexpected error during linking for {interaction.user.id} in Guild {self.guild_id}: {e}", exc_info=True)
             await interaction.followup.send("An unexpected error occurred. Please contact support.", ephemeral=True)
+            
+class DbConfigModal(Modal, title="Database Configuration"):
+    db_user = TextInput(label="Database Username", style=TextStyle.short, required=True)
+    db_pass = TextInput(label="Database Password", style=TextStyle.short, required=True)
+    db_host = TextInput(label="Database Host (IP or Domain)", style=TextStyle.short, required=True)
+    db_port = TextInput(label="Database Port", style=TextStyle.short, required=True, default="5432")
+    db_name = TextInput(label="Database Name", style=TextStyle.short, required=True)
 
+    def __init__(self, cog_instance: 'AccountLinker', guild_id: int):
+        super().__init__(timeout=None)
+        self.cog = cog_instance
+        self.guild_id = guild_id
+
+    async def on_submit(self, interaction: Interaction):
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        username = self.db_user.value.strip()
+        password = self.db_pass.value
+        host = self.db_host.value.strip()
+        port = self.db_port.value.strip()
+        dbname = self.db_name.value.strip()
+
+        if not port.isdigit():
+            await interaction.followup.send("Port must be a number.", ephemeral=True)
+            return
+
+        encoded_password = urllib.parse.quote(password)
+
+        connection_string = f"postgresql://{username}:{encoded_password}@{host}:{port}/{dbname}"
+
+        log.info(f"Attempting to set DB string for Guild {self.guild_id} (constructed from modal).")
+
+        await self.cog.close_guild_pool(self.guild_id)
+
+        await self.cog.config.guild_from_id(self.guild_id).db_connection_string.set(connection_string)
+
+        pool = await self.cog.get_pool_for_guild(self.guild_id)
+
+        if pool:
+            await interaction.followup.send(f"Database connection string saved and successfully tested for this server!", ephemeral=True)
+        else:
+            safe_debug_string = f"postgresql://{username}:********@{host}:{port}/{dbname}"
+            await interaction.followup.send(f"Failed to connect using the provided details. Please check them and try again.\n(Attempted connection: `{safe_debug_string}`)", ephemeral=True)
 
 class LinkAccountView(View):
     def __init__(self, cog_instance: 'AccountLinker'):
@@ -274,24 +317,13 @@ class AccountLinker(commands.Cog):
             await self.close_guild_pool(guild_id)
         log.info("All guild database connection pools closed.")
 
-    @commands.admin_or_permissions(manage_guild=True)
+    @commands.hybrid_command(name="linkersetdb")
     @commands.guild_only()
-    @commands.command(name="linkersetdb")
-    async def set_guild_db_string(self, ctx: commands.Context, *, connection_string: str):
-        """Sets the PostgreSQL connection string for this server.
-
-        Example: [p]linkersetdb postgresql://user:password@host:port/database
-        Admins only.
-        """
-        await self.close_guild_pool(ctx.guild.id)
-
-        await self.config.guild(ctx.guild).db_connection_string.set(connection_string)
-        await ctx.send(f"Database connection string saved for **{ctx.guild.name}**.")
-        pool = await self.get_pool_for_guild(ctx.guild.id)
-        if pool:
-            await ctx.send("Successfully connected to the new database.")
-        else:
-            await ctx.send("Failed to connect using the provided connection string. Please check it and try again.")
+    @commands.admin_or_permissions(manage_guild=True)
+    @app_commands.describe()
+    async def linkersetdb(self, ctx: commands.Context):
+        """Opens a modal to configure the database connection for this server (Admins only)."""
+        await ctx.send_modal(DbConfigModal(self, ctx.guild.id))
 
     @commands.admin_or_permissions(manage_guild=True)
     @commands.command()
