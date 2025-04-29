@@ -453,7 +453,7 @@ class AccountLinker(commands.Cog):
             conn = None
             try:
                 conn = await pool.acquire()
-                tiers = await conn.fetch('SELECT rmc_patreon_tiers_id, discord_role, name, priority FROM rmc_patron_tiers ORDER BY priority ASC;')
+                tiers = await conn.fetch('SELECT rmc_patron_tiers_id, discord_role, name, priority FROM rmc_patron_tiers ORDER BY priority ASC;')
                 if not tiers:
                     log.warning(f"Patron sync task: No patron tiers found in database for Guild {guild_id}.")
                     await pool.release(conn)
