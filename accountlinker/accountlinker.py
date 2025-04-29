@@ -317,7 +317,7 @@ class AccountLinker(commands.Cog):
             await self.close_guild_pool(guild_id)
         log.info("All guild database connection pools closed.")
 
-    @commands.hybrid_command(name="linkersetdb")
+    @app_commands.command(name="linkersetdb")
     @app_commands.guild_only()
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.describe()
