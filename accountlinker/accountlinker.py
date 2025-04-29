@@ -319,7 +319,7 @@ class AccountLinker(commands.Cog):
 
     @commands.hybrid_command(name="linkersetdb")
     @app_commands.guild_only()
-    @app_commands.admin_or_permissions(manage_guild=True)
+    @app_commands.checks.has_permissions(administrator=True)
     @app_commands.describe()
     async def linkersetdb(self, ctx: commands.Context):
         """Opens a modal to configure the database connection for this server (Admins only)."""
