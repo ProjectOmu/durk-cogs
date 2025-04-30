@@ -205,8 +205,7 @@ class RoleSyncer(commands.Cog):
                             await self._sync_member_roles(member_b, guild_b, member_a, guild_a, to_add_a, to_remove_a, allowed_roles)
                             sync_actions += len(to_add_a) + len(to_remove_a)
 
-
-        await ctx.send(f"Full role synchronization complete. Processed {processed_users} user instances across server pairs, performing {sync_actions} role adjustments based on configured roles.")-
+            await ctx.send(f"Full role synchronization complete. Processed {processed_users} user instances across server pairs, performing {sync_actions} role adjustments based on configured roles.")-
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
