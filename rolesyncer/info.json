@@ -1,0 +1,17 @@
+{
+    "author": [
+        "Durk"
+    ],
+    "install_msg": "Thank you for installing the RoleSyncer cog! Use `[p]help RoleSyncer` for commands.",
+    "name": "RoleSyncer",
+    "short": "Syncs user's roles between 2+ Discords.",
+    "description": "A cog to manage syncing users' roles across multiple servers.",
+    "tags": [
+        "roles",
+        "utility"
+    ],
+    "requirements": [],
+    "required_cogs": {},
+    "min_bot_version": "3.5.0",
+    "end_user_data_statement": "This cog does not store user data."
+}
