@@ -7,7 +7,7 @@ class RoleSyncer(commands.Cog):
 
     def __init__(self, bot: Red):
         self.bot = bot
-        self.config = Config.get_conf(self, identifier=rolesync)
+        self.config = Config.get_conf(self, identifier="rolesync")
         default_global = {
             "sync_groups": {},
             "enabled": True
