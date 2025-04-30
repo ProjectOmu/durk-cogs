@@ -2,12 +2,14 @@ import discord
 from redbot.core import commands, Config, checks
 from redbot.core.bot import Red
 import logging
-from typing import Set
+from typing import Set, Optional, Dict, Any
 
 log = logging.getLogger("red.durk-cogs.rolesyncer")
 
+SyncGroups = Dict[str, Dict[str, Any]]
+
 class RoleSyncer(commands.Cog):
-    """Cog for syncing specific roles between multiple discord servers based on groups."""
+    """Cog for syncing specific roles unidirectionally from a master server to slave servers."""
 
     def __init__(self, bot: Red):
         self.bot = bot
@@ -21,7 +23,7 @@ class RoleSyncer(commands.Cog):
     @commands.group()
     @checks.admin_or_permissions(administrator=True)
     async def rolesync(self, ctx: commands.Context):
-        """Manage role synchronization settings."""
+        """Manage master-slave role synchronization settings."""
         pass
 
     @rolesync.command(name="create")
@@ -31,8 +33,8 @@ class RoleSyncer(commands.Cog):
             if group_name in groups:
                 await ctx.send(f"Group '{group_name}' already exists.")
                 return
-            groups[group_name] = {"guilds": [], "roles": []}
-        await ctx.send(f"Sync group '{group_name}' created. Use `addserver` and `addrole` to configure it.")
+            groups[group_name] = {"master": None, "slaves": [], "roles": []}
+        await ctx.send(f"Sync group '{group_name}' created. Use `setmaster`, `addslave`, and `addrole` to configure it.")
 
     @rolesync.command(name="delete")
     async def rolesync_delete(self, ctx: commands.Context, group_name: str):
@@ -46,22 +48,34 @@ class RoleSyncer(commands.Cog):
 
     @rolesync.command(name="list")
     async def rolesync_list(self, ctx: commands.Context):
-        """Lists all role synchronization groups, their servers, and synced roles."""
-        groups = await self.config.sync_groups()
+        """Lists all role synchronization groups, their master/slaves, and synced roles."""
+        groups: SyncGroups = await self.config.sync_groups()
         if not groups:
             await ctx.send("No sync groups configured.")
             return
 
-        msg = "**Role Synchronization Groups:**\n"
+        msg = "**Role Synchronization Groups (Master -> Slaves):**\n"
         for name, data in groups.items():
-            guild_list = ", ".join(str(g) for g in data.get("guilds", [])) or "No servers"
+            master_id = data.get("master")
+            master_guild = self.bot.get_guild(master_id) if master_id else None
+            master_str = f"{master_guild.name} ({master_id})" if master_guild else (str(master_id) if master_id else "Not Set")
+
+            slaves_list = []
+            for slave_id in data.get("slaves", []):
+                 slave_guild = self.bot.get_guild(slave_id)
+                 slaves_list.append(f"{slave_guild.name} ({slave_id})" if slave_guild else str(slave_id))
+            slaves_str = ", ".join(slaves_list) or "None"
+
             role_list = ", ".join(f"`{r}`" for r in data.get("roles", [])) or "No roles configured"
-            msg += f"- **{name}**:\n  - Servers: {guild_list}\n  - Synced Roles: {role_list}\n"
+            msg += (f"- **{name}**:\n"
+                    f"  - Master: {master_str}\n"
+                    f"  - Slaves: {slaves_str}\n"
+                    f"  - Synced Roles: {role_list}\n")
         await ctx.send(msg)
 
-    @rolesync.command(name="addserver")
-    async def rolesync_addserver(self, ctx: commands.Context, group_name: str, guild_id: int):
-        """Adds a server (by ID) to a sync group."""
+    @rolesync.command(name="setmaster")
+    async def rolesync_setmaster(self, ctx: commands.Context, group_name: str, guild_id: int):
+        """Sets the master server (by ID) for a sync group."""
         guild = self.bot.get_guild(guild_id)
         if not guild:
             await ctx.send(f"Could not find a server with ID {guild_id}. Make sure the bot is in that server.")
@@ -71,26 +85,51 @@ class RoleSyncer(commands.Cog):
             if group_name not in groups:
                 await ctx.send(f"Group '{group_name}' not found.")
                 return
-            if guild_id in groups[group_name]["guilds"]:
-                await ctx.send(f"Server {guild.name} ({guild_id}) is already in group '{group_name}'.")
-                return
-            groups[group_name]["guilds"].append(guild_id)
-        await ctx.send(f"Server {guild.name} ({guild_id}) added to sync group '{group_name}'.")
+            if guild_id in groups[group_name]["slaves"]:
+                 await ctx.send(f"Server {guild.name} ({guild_id}) is currently a slave in this group. Remove it as a slave first.")
+                 return
+            groups[group_name]["master"] = guild_id
+        await ctx.send(f"Server {guild.name} ({guild_id}) set as master for sync group '{group_name}'.")
 
-    @rolesync.command(name="removeserver")
-    async def rolesync_removeserver(self, ctx: commands.Context, group_name: str, guild_id: int):
-        """Removes a server (by ID) from a sync group."""
+    @rolesync.command(name="addslave")
+    async def rolesync_addslave(self, ctx: commands.Context, group_name: str, guild_id: int):
+        """Adds a slave server (by ID) to a sync group."""
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            await ctx.send(f"Could not find a server with ID {guild_id}. Make sure the bot is in that server.")
+            return
+
         async with self.config.sync_groups() as groups:
             if group_name not in groups:
                 await ctx.send(f"Group '{group_name}' not found.")
                 return
-            if guild_id not in groups[group_name]["guilds"]:
-                guild_name = self.bot.get_guild(guild_id).name if self.bot.get_guild(guild_id) else guild_id
-                await ctx.send(f"Server {guild_name} is not in group '{group_name}'.")
+            if guild_id == groups[group_name]["master"]:
+                 await ctx.send(f"Server {guild.name} ({guild_id}) is the master for this group and cannot be a slave.")
+                 return
+            if guild_id in groups[group_name]["slaves"]:
+                await ctx.send(f"Server {guild.name} ({guild_id}) is already a slave in group '{group_name}'.")
                 return
-            groups[group_name]["guilds"].remove(guild_id)
-            guild_name = self.bot.get_guild(guild_id).name if self.bot.get_guild(guild_id) else guild_id
-        await ctx.send(f"Server {guild_name} removed from sync group '{group_name}'.")
+            groups[group_name]["slaves"].append(guild_id)
+        await ctx.send(f"Server {guild.name} ({guild_id}) added as a slave to sync group '{group_name}'.")
+
+    @rolesync.command(name="removeslave")
+    async def rolesync_removeslave(self, ctx: commands.Context, group_name: str, guild_id: int):
+        """Removes a slave server (by ID) from a sync group."""
+        guild_name_or_id = str(guild_id)
+        guild = self.bot.get_guild(guild_id)
+        if guild:
+            guild_name_or_id = f"{guild.name} ({guild_id})"
+
+        async with self.config.sync_groups() as groups:
+            if group_name not in groups:
+                await ctx.send(f"Group '{group_name}' not found.")
+                return
+            if guild_id not in groups[group_name]["slaves"]:
+                await ctx.send(f"Server {guild_name_or_id} is not a slave in group '{group_name}'.")
+                return
+            groups[group_name]["slaves"].remove(guild_id)
+        await ctx.send(f"Server {guild_name_or_id} removed as a slave from sync group '{group_name}'.")
+
 
     @rolesync.command(name="addrole")
     async def rolesync_addrole(self, ctx: commands.Context, group_name: str, *, role_name: str):
@@ -99,6 +138,8 @@ class RoleSyncer(commands.Cog):
             if group_name not in groups:
                 await ctx.send(f"Group '{group_name}' not found.")
                 return
+            if "roles" not in groups[group_name]:
+                 groups[group_name]["roles"] = []
             if role_name in groups[group_name]["roles"]:
                 await ctx.send(f"Role name `{role_name}` is already configured for sync in group '{group_name}'.")
                 return
@@ -112,7 +153,7 @@ class RoleSyncer(commands.Cog):
             if group_name not in groups:
                 await ctx.send(f"Group '{group_name}' not found.")
                 return
-            if role_name not in groups[group_name]["roles"]:
+            if role_name not in groups[group_name].get("roles", []):
                 await ctx.send(f"Role name `{role_name}` is not configured for sync in group '{group_name}'.")
                 return
             groups[group_name]["roles"].remove(role_name)
@@ -129,159 +170,155 @@ class RoleSyncer(commands.Cog):
 
     @rolesync.command(name="forcesync")
     @checks.admin_or_permissions(administrator=True)
-    async def rolesync_forcesync(self, ctx: commands.Context):
-        """Forces a synchronization of configured roles across all groups and servers."""
+    async def rolesync_forcesync(self, ctx: commands.Context, group_name: Optional[str] = None):
+        """Forces sync from master to slaves for configured roles.
+
+        Optionally specify a group name to sync only that group.
+        """
         if not await self.config.enabled():
             await ctx.send("Role synchronization is globally disabled. Enable it first with `[p]rolesync toggle`.")
             return
 
-        await ctx.send("Starting full role synchronization for configured roles... This may take a while.")
-        sync_groups = await self.config.sync_groups()
-        if not sync_groups:
-            await ctx.send("No sync groups configured.")
+        await ctx.send("Starting role synchronization from master servers... This may take a while.")
+        all_groups: SyncGroups = await self.config.sync_groups()
+        groups_to_sync = {}
+
+        if group_name:
+            if group_name in all_groups:
+                groups_to_sync[group_name] = all_groups[group_name]
+            else:
+                await ctx.send(f"Group '{group_name}' not found.")
+                return
+        else:
+            groups_to_sync = all_groups
+
+        if not groups_to_sync:
+            await ctx.send("No sync groups configured or specified group not found.")
             return
 
         processed_users = 0
         sync_actions = 0
 
-        for group_name, group_data in sync_groups.items():
-            guild_ids = group_data.get("guilds", [])
+        for g_name, group_data in groups_to_sync.items():
+            master_id = group_data.get("master")
+            slave_ids = group_data.get("slaves", [])
             allowed_roles = set(group_data.get("roles", []))
 
+            if not master_id:
+                log.info(f"Skipping group '{g_name}' in forcesync: No master server set.")
+                continue
+            if not slave_ids:
+                log.info(f"Skipping group '{g_name}' in forcesync: No slave servers set.")
+                continue
             if not allowed_roles:
-                log.debug(f"Skipping group '{group_name}' in forcesync: No roles configured.")
+                log.info(f"Skipping group '{g_name}' in forcesync: No roles configured.")
                 continue
 
-            if len(guild_ids) < 2:
+            master_guild = self.bot.get_guild(master_id)
+            if not master_guild:
+                log.warning(f"Skipping group '{g_name}' in forcesync: Master server {master_id} not found or bot not in it.")
                 continue
 
-            guild_pairs = []
-            guild_objects = [self.bot.get_guild(gid) for gid in guild_ids]
-            guild_objects = [g for g in guild_objects if g]
+            slave_guild_objects = [self.bot.get_guild(sid) for sid in slave_ids]
+            slave_guild_objects = [g for g in slave_guild_objects if g]
+            if not slave_guild_objects:
+                 log.warning(f"Skipping group '{g_name}' in forcesync: No available slave servers found.")
+                 continue
 
-            if len(guild_objects) < 2:
-                continue
+            log.info(f"Forcesync: Processing group '{g_name}' (Master: {master_guild.name})")
 
-            for i in range(len(guild_objects)):
-                for j in range(i + 1, len(guild_objects)):
-                    guild_pairs.append((guild_objects[i], guild_objects[j]))
+            for master_member in master_guild.members:
+                if master_member.bot: continue
 
-            for guild_a, guild_b in guild_pairs:
-                log.debug(f"Forcesync: Processing pair {guild_a.name} <-> {guild_b.name} for group '{group_name}'")
-                for member_a in guild_a.members:
-                    if member_a.bot: continue
-                    member_b = guild_b.get_member(member_a.id)
-                    if member_b:
+                master_roles_names = {r.name for r in master_member.roles}
+                relevant_master_roles = master_roles_names.intersection(allowed_roles)
+
+                for slave_guild in slave_guild_objects:
+                    slave_member = slave_guild.get_member(master_member.id)
+                    if slave_member:
                         processed_users += 1
-                        roles_a_names = {r.name for r in member_a.roles}
-                        roles_b_names = {r.name for r in member_b.roles}
+                        slave_roles_names = {r.name for r in slave_member.roles}
+                        relevant_slave_roles = slave_roles_names.intersection(allowed_roles)
 
-                        relevant_roles_a = roles_a_names.intersection(allowed_roles)
-                        relevant_roles_b = roles_b_names.intersection(allowed_roles)
+                        to_add_slave = relevant_master_roles - relevant_slave_roles
 
-                        to_add_b = relevant_roles_a - relevant_roles_b
-                        to_remove_b = relevant_roles_b - relevant_roles_a
+                        to_remove_slave = relevant_slave_roles - relevant_master_roles
 
-                        if to_add_b or to_remove_b:
-                            log.debug(f"Forcesync A->B: Syncing {member_a} ({guild_a.name}) -> {member_b} ({guild_b.name}). Add: {to_add_b}, Remove: {to_remove_b}")
-                            await self._sync_member_roles(member_a, guild_a, member_b, guild_b, to_add_b, to_remove_b, allowed_roles)
-                            sync_actions += len(to_add_b) + len(to_remove_b)
+                        if to_add_slave or to_remove_slave:
+                            log.debug(f"Forcesync {g_name}: Syncing {master_member} ({master_guild.name}) -> {slave_member} ({slave_guild.name}). Add: {to_add_slave}, Remove: {to_remove_slave}")
+                            await self._sync_member_roles(master_member, master_guild, slave_member, slave_guild, to_add_slave, to_remove_slave, allowed_roles)
+                            sync_actions += len(to_add_slave) + len(to_remove_slave)
 
-                for member_b in guild_b.members:
-                     if member_b.bot: continue
-                     member_a = guild_a.get_member(member_b.id)
-                     if member_a:
-                        roles_a_names = {r.name for r in member_a.roles}
-                        roles_b_names = {r.name for r in member_b.roles}
-
-                        relevant_roles_a = roles_a_names.intersection(allowed_roles)
-                        relevant_roles_b = roles_b_names.intersection(allowed_roles)
-
-                        to_add_a = relevant_roles_b - relevant_roles_a
-                        to_remove_a = relevant_roles_a - relevant_roles_b
-
-                        if to_add_a or to_remove_a:
-                            log.debug(f"Forcesync B->A: Syncing {member_b} ({guild_b.name}) -> {member_a} ({guild_a.name}). Add: {to_add_a}, Remove: {to_remove_a}")
-                            await self._sync_member_roles(member_b, guild_b, member_a, guild_a, to_add_a, to_remove_a, allowed_roles)
-                            sync_actions += len(to_add_a) + len(to_remove_a)
-
-            await ctx.send(f"Full role synchronization complete. Processed {processed_users} user instances across server pairs, performing {sync_actions} role adjustments based on configured roles.")
+        await ctx.send(f"Master->Slave role synchronization complete. Processed {processed_users} user instances across master/slave pairs, performing {sync_actions} role adjustments based on configured roles.")
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
-        """Listens for role changes and syncs configured roles."""
-        if not await self.config.enabled():
-            return
-        if before.roles == after.roles or after.bot:
+        """Listens for role changes on a master server and syncs to slaves."""
+        if not await self.config.enabled() or before.roles == after.roles or after.bot:
             return
 
-        guild = after.guild
-        user = after
+        master_guild = after.guild
+        master_member = after
 
-        sync_groups_data = await self.config.sync_groups()
-        relevant_groups = self._get_relevant_groups(guild.id, sync_groups_data)
+        all_groups: SyncGroups = await self.config.sync_groups()
+        group_data = None
+        group_name = None
 
-        if not relevant_groups:
+        for g_name, g_data in all_groups.items():
+            if g_data.get("master") == master_guild.id:
+                group_data = g_data
+                group_name = g_name
+                break
+
+        if not group_data or not group_name:
+            return
+
+        slave_ids = group_data.get("slaves", [])
+        allowed_roles = set(group_data.get("roles", []))
+
+        if not slave_ids or not allowed_roles:
             return
 
         before_role_names = {r.name for r in before.roles}
         after_role_names = {r.name for r in after.roles}
+
         added_role_names = after_role_names - before_role_names
         removed_role_names = before_role_names - after_role_names
 
-        if not added_role_names and not removed_role_names:
-             return
+        relevant_added = added_role_names.intersection(allowed_roles)
+        relevant_removed = removed_role_names.intersection(allowed_roles)
 
-        for group_name in relevant_groups:
-            group_data = sync_groups_data[group_name]
-            target_guild_ids = group_data.get("guilds", [])
-            allowed_roles = set(group_data.get("roles", []))
+        if not relevant_added and not relevant_removed:
+            return
 
-            if not allowed_roles:
-                log.debug(f"Skipping group '{group_name}' in on_member_update: No roles configured.")
+        log.info(f"Detected relevant role change for {master_member} in master server {master_guild.name} (Group: {group_name}). Changes: Add {relevant_added}, Remove {relevant_removed}")
+
+        for slave_id in slave_ids:
+            slave_guild = self.bot.get_guild(slave_id)
+            if not slave_guild:
+                log.warning(f"Slave guild {slave_id} not found or bot not in it for group {group_name}.")
                 continue
 
-            relevant_added = added_role_names.intersection(allowed_roles)
-            relevant_removed = removed_role_names.intersection(allowed_roles)
-
-            if not relevant_added and not relevant_removed:
-                log.debug(f"Skipping group '{group_name}' for member {user}: Changes ({added_role_names}, {removed_role_names}) not relevant to configured roles ({allowed_roles}).")
+            slave_member = slave_guild.get_member(master_member.id)
+            if not slave_member:
                 continue
 
-            for target_guild_id in target_guild_ids:
-                if target_guild_id == guild.id:
-                    continue
-
-                target_guild = self.bot.get_guild(target_guild_id)
-                if not target_guild:
-                    log.warning(f"Target guild {target_guild_id} not found or bot not in it.")
-                    continue
-
-                target_member = target_guild.get_member(user.id)
-                if not target_member:
-                    continue
-
-                log.debug(f"Syncing {user} from {guild.name} to {target_guild.name} (Group: {group_name}). Add: {relevant_added}, Remove: {relevant_removed}")
-                await self._sync_member_roles(user, guild, target_member, target_guild, relevant_added, relevant_removed, allowed_roles)
-
-    def _get_relevant_groups(self, guild_id: int, all_groups: dict) -> list[str]:
-        """Finds the sync groups a specific guild belongs to."""
-        relevant = []
-        for group_name, group_data in all_groups.items():
-            if guild_id in group_data.get("guilds", []):
-                relevant.append(group_name)
-        return relevant
+            log.debug(f"Syncing {master_member} ({master_guild.name}) -> {slave_member} ({slave_guild.name}). Add: {relevant_added}, Remove: {relevant_removed}")
+            await self._sync_member_roles(master_member, master_guild, slave_member, slave_guild, relevant_added, relevant_removed, allowed_roles)
 
     async def _sync_member_roles(self, source_member: discord.Member, source_guild: discord.Guild,
                                  target_member: discord.Member, target_guild: discord.Guild,
                                  roles_to_add_names: Set[str], roles_to_remove_names: Set[str],
                                  allowed_roles: Set[str]):
-        """Adds/removes configured roles on the target member based on changes in the source."""
+        """Applies role changes TO the target_member based on changes from the source_member.
+
+        Ensures only allowed roles are modified.
+        """
         roles_to_add_target = []
         roles_to_remove_target = []
 
-        final_roles_to_add = roles_to_add_names.intersection(allowed_roles)
-        final_roles_to_remove = roles_to_remove_names.intersection(allowed_roles)
+        final_roles_to_add = roles_to_add_names
+        final_roles_to_remove = roles_to_remove_names
 
         for role_name in final_roles_to_add:
             role = discord.utils.get(target_guild.roles, name=role_name)
@@ -290,6 +327,9 @@ class RoleSyncer(commands.Cog):
                     roles_to_add_target.append(role)
                 else:
                     log.warning(f"RoleSync: Cannot add role '{role.name}' to {target_member} in {target_guild.name} - Bot hierarchy too low.")
+            elif not role:
+                 log.warning(f"RoleSync: Role '{role_name}' to add not found in target guild {target_guild.name}.")
+
 
         for role_name in final_roles_to_remove:
             role = discord.utils.get(target_guild.roles, name=role_name)
@@ -301,11 +341,11 @@ class RoleSyncer(commands.Cog):
 
         try:
             if roles_to_add_target:
-                await target_member.add_roles(*roles_to_add_target, reason=f"RoleSync from {source_guild.name}")
-                log.info(f"Added roles {[r.name for r in roles_to_add_target]} to {target_member} in {target_guild.name}")
+                await target_member.add_roles(*roles_to_add_target, reason=f"RoleSync from master {source_guild.name}")
+                log.info(f"Added roles {[r.name for r in roles_to_add_target]} to {target_member} in slave {target_guild.name}")
             if roles_to_remove_target:
-                await target_member.remove_roles(*roles_to_remove_target, reason=f"RoleSync from {source_guild.name}")
-                log.info(f"Removed roles {[r.name for r in roles_to_remove_target]} from {target_member} in {target_guild.name}")
+                await target_member.remove_roles(*roles_to_remove_target, reason=f"RoleSync from master {source_guild.name}")
+                log.info(f"Removed roles {[r.name for r in roles_to_remove_target]} from {target_member} in slave {target_guild.name}")
         except discord.Forbidden:
             log.error(f"RoleSync: Missing permissions to modify roles for {target_member} in {target_guild.name}.")
         except discord.HTTPException as e:
