@@ -60,34 +60,42 @@ class RoleSyncer(commands.Cog):
             return
 
         embed = discord.Embed(title="Role Synchronization Groups", color=discord.Color.blue())
-        description = ""
+
+        if len(groups) == 0:
+             embed.description = "No sync groups configured."
+             await ctx.send(embed=embed)
+             return
+
         for name, data in groups.items():
             master_id = data.get("master")
             master_guild = self.bot.get_guild(master_id) if master_id else None
-            master_str = f"{master_guild.name} ({master_id})" if master_guild else (f"`{master_id}`" if master_id else "*Not Set*")
+            master_str = f"{master_guild.name} (`{master_id}`)" if master_guild else (f"ID: `{master_id}`" if master_id else "*Not Set*")
 
             slaves_list = []
             for slave_id in data.get("slaves", []):
                  slave_guild = self.bot.get_guild(slave_id)
-                 slaves_list.append(f"{slave_guild.name} ({slave_id})" if slave_guild else f"`{slave_id}`")
-            slaves_str = ", ".join(slaves_list) or "*None*"
+                 slaves_list.append(f"{slave_guild.name} (`{slave_id}`)" if slave_guild else f"ID: `{slave_id}`")
 
-            role_list = ", ".join(f"`{r}`" for r in data.get("roles", [])) or "*No roles configured*"
+            slaves_str = "\n".join(slaves_list) if len(slaves_list) > 1 else (slaves_list[0] if slaves_list else "*None*")
 
-            if len(groups) == 1:
-                 description += (f"**Group:** {name}\n"
-                                 f"**Master:** {master_str}\n"
-                                 f"**Slaves:** {slaves_str}\n"
-                                 f"**Synced Roles:** {role_list}\n")
-            else:
-                 embed.add_field(name=f"Group: {name}",
-                                 value=(f"**Master:** {master_str}\n"
-                                        f"**Slaves:** {slaves_str}\n"
-                                        f"**Synced Roles:** {role_list}"),
-                                 inline=False)
 
-        if description:
-            embed.description = description
+            role_list = data.get("roles", [])
+
+            roles_str = "\n".join(f"- `{r}`" for r in role_list) if role_list else "*No roles configured*"
+
+            embed.add_field(
+                name=f"🔄 Group: {name}",
+                value=(
+                    f"👑 **Master:** {master_str}\n"
+                    f"🔗 **Slaves:**\n{slaves_str}\n"
+                    f"📜 **Synced Roles:**\n{roles_str}"
+                ),
+                inline=False
+            )
+
+            if len(groups) > 1 and name != list(groups.keys())[-1]:
+                 embed.add_field(name="\u200b", value="\u200b", inline=False)
+
 
         await ctx.send(embed=embed)
 
