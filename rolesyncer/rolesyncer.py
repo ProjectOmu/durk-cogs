@@ -31,86 +31,117 @@ class RoleSyncer(commands.Cog):
         """Creates a new role synchronization group."""
         async with self.config.sync_groups() as groups:
             if group_name in groups:
-                await ctx.send(f"Group '{group_name}' already exists.")
+                embed = discord.Embed(title="Error", description=f"Group '{group_name}' already exists.", color=discord.Color.red())
+                await ctx.send(embed=embed)
                 return
             groups[group_name] = {"master": None, "slaves": [], "roles": []}
-        await ctx.send(f"Sync group '{group_name}' created. Use `setmaster`, `addslave`, and `addrole` to configure it.")
+        embed = discord.Embed(title="Sync Group Created", description=f"Sync group '{group_name}' created.\nUse `{ctx.prefix}rolesync setmaster`, `{ctx.prefix}rolesync addslave`, and `{ctx.prefix}rolesync addrole` to configure it.", color=discord.Color.green())
+        await ctx.send(embed=embed)
 
     @rolesync.command(name="delete")
     async def rolesync_delete(self, ctx: commands.Context, group_name: str):
         """Deletes a role synchronization group."""
         async with self.config.sync_groups() as groups:
             if group_name not in groups:
-                await ctx.send(f"Group '{group_name}' not found.")
+                embed = discord.Embed(title="Error", description=f"Group '{group_name}' not found.", color=discord.Color.red())
+                await ctx.send(embed=embed)
                 return
             del groups[group_name]
-        await ctx.send(f"Sync group '{group_name}' deleted.")
+        embed = discord.Embed(title="Sync Group Deleted", description=f"Sync group '{group_name}' deleted.", color=discord.Color.green())
+        await ctx.send(embed=embed)
 
     @rolesync.command(name="list")
     async def rolesync_list(self, ctx: commands.Context):
         """Lists all role synchronization groups, their master/slaves, and synced roles."""
         groups: SyncGroups = await self.config.sync_groups()
         if not groups:
-            await ctx.send("No sync groups configured.")
+            embed = discord.Embed(title="Role Synchronization Groups", description="No sync groups configured.", color=discord.Color.blue())
+            await ctx.send(embed=embed)
             return
 
-        msg = "**Role Synchronization Groups (Master -> Slaves):**\n"
+        embed = discord.Embed(title="Role Synchronization Groups", color=discord.Color.blue())
+        description = ""
         for name, data in groups.items():
             master_id = data.get("master")
             master_guild = self.bot.get_guild(master_id) if master_id else None
-            master_str = f"{master_guild.name} ({master_id})" if master_guild else (str(master_id) if master_id else "Not Set")
+            master_str = f"{master_guild.name} ({master_id})" if master_guild else (f"`{master_id}`" if master_id else "*Not Set*")
 
             slaves_list = []
             for slave_id in data.get("slaves", []):
                  slave_guild = self.bot.get_guild(slave_id)
-                 slaves_list.append(f"{slave_guild.name} ({slave_id})" if slave_guild else str(slave_id))
-            slaves_str = ", ".join(slaves_list) or "None"
+                 slaves_list.append(f"{slave_guild.name} ({slave_id})" if slave_guild else f"`{slave_id}`")
+            slaves_str = ", ".join(slaves_list) or "*None*"
 
-            role_list = ", ".join(f"`{r}`" for r in data.get("roles", [])) or "No roles configured"
-            msg += (f"- **{name}**:\n"
-                    f"  - Master: {master_str}\n"
-                    f"  - Slaves: {slaves_str}\n"
-                    f"  - Synced Roles: {role_list}\n")
-        await ctx.send(msg)
+            role_list = ", ".join(f"`{r}`" for r in data.get("roles", [])) or "*No roles configured*"
+
+            if len(groups) == 1:
+                 description += (f"**Group:** {name}\n"
+                                 f"**Master:** {master_str}\n"
+                                 f"**Slaves:** {slaves_str}\n"
+                                 f"**Synced Roles:** {role_list}\n")
+            else:
+                 embed.add_field(name=f"Group: {name}",
+                                 value=(f"**Master:** {master_str}\n"
+                                        f"**Slaves:** {slaves_str}\n"
+                                        f"**Synced Roles:** {role_list}"),
+                                 inline=False)
+
+        if description:
+            embed.description = description
+
+        await ctx.send(embed=embed)
 
     @rolesync.command(name="setmaster")
     async def rolesync_setmaster(self, ctx: commands.Context, group_name: str, guild_id: int):
         """Sets the master server (by ID) for a sync group."""
         guild = self.bot.get_guild(guild_id)
         if not guild:
-            await ctx.send(f"Could not find a server with ID {guild_id}. Make sure the bot is in that server.")
+            embed = discord.Embed(title="Error", description=f"Could not find a server with ID `{guild_id}`. Make sure the bot is in that server.", color=discord.Color.red())
+            await ctx.send(embed=embed)
             return
 
         async with self.config.sync_groups() as groups:
             if group_name not in groups:
-                await ctx.send(f"Group '{group_name}' not found.")
+                embed = discord.Embed(title="Error", description=f"Group '{group_name}' not found.", color=discord.Color.red())
+                await ctx.send(embed=embed)
                 return
             if guild_id in groups[group_name]["slaves"]:
-                 await ctx.send(f"Server {guild.name} ({guild_id}) is currently a slave in this group. Remove it as a slave first.")
+                 embed = discord.Embed(title="Error", description=f"Server {guild.name} (`{guild_id}`) is currently a slave in this group. Remove it as a slave first.", color=discord.Color.red())
+                 await ctx.send(embed=embed)
                  return
             groups[group_name]["master"] = guild_id
-        await ctx.send(f"Server {guild.name} ({guild_id}) set as master for sync group '{group_name}'.")
+        embed = discord.Embed(title="Master Server Set", description=f"Server **{guild.name}** (`{guild_id}`) set as master for sync group **'{group_name}'**.", color=discord.Color.green())
+        await ctx.send(embed=embed)
 
     @rolesync.command(name="addslave")
     async def rolesync_addslave(self, ctx: commands.Context, group_name: str, guild_id: int):
         """Adds a slave server (by ID) to a sync group."""
         guild = self.bot.get_guild(guild_id)
         if not guild:
-            await ctx.send(f"Could not find a server with ID {guild_id}. Make sure the bot is in that server.")
+            embed = discord.Embed(title="Error", description=f"Could not find a server with ID `{guild_id}`. Make sure the bot is in that server.", color=discord.Color.red())
+            await ctx.send(embed=embed)
             return
 
         async with self.config.sync_groups() as groups:
             if group_name not in groups:
-                await ctx.send(f"Group '{group_name}' not found.")
+                embed = discord.Embed(title="Error", description=f"Group '{group_name}' not found.", color=discord.Color.red())
+                await ctx.send(embed=embed)
+                return
+            if groups[group_name]["master"] is None:
+                embed = discord.Embed(title="Error", description=f"Group '{group_name}' does not have a master server set yet.", color=discord.Color.red())
+                await ctx.send(embed=embed)
                 return
             if guild_id == groups[group_name]["master"]:
-                 await ctx.send(f"Server {guild.name} ({guild_id}) is the master for this group and cannot be a slave.")
+                 embed = discord.Embed(title="Error", description=f"Server **{guild.name}** (`{guild_id}`) is the master for this group and cannot be a slave.", color=discord.Color.red())
+                 await ctx.send(embed=embed)
                  return
             if guild_id in groups[group_name]["slaves"]:
-                await ctx.send(f"Server {guild.name} ({guild_id}) is already a slave in group '{group_name}'.")
+                embed = discord.Embed(title="Info", description=f"Server **{guild.name}** (`{guild_id}`) is already a slave in group **'{group_name}'**.", color=discord.Color.blue())
+                await ctx.send(embed=embed)
                 return
             groups[group_name]["slaves"].append(guild_id)
-        await ctx.send(f"Server {guild.name} ({guild_id}) added as a slave to sync group '{group_name}'.")
+        embed = discord.Embed(title="Slave Server Added", description=f"Server **{guild.name}** (`{guild_id}`) added as a slave to sync group **'{group_name}'**.", color=discord.Color.green())
+        await ctx.send(embed=embed)
 
     @rolesync.command(name="removeslave")
     async def rolesync_removeslave(self, ctx: commands.Context, group_name: str, guild_id: int):
@@ -122,13 +153,16 @@ class RoleSyncer(commands.Cog):
 
         async with self.config.sync_groups() as groups:
             if group_name not in groups:
-                await ctx.send(f"Group '{group_name}' not found.")
+                embed = discord.Embed(title="Error", description=f"Group '{group_name}' not found.", color=discord.Color.red())
+                await ctx.send(embed=embed)
                 return
             if guild_id not in groups[group_name]["slaves"]:
-                await ctx.send(f"Server {guild_name_or_id} is not a slave in group '{group_name}'.")
+                embed = discord.Embed(title="Error", description=f"Server {guild_name_or_id} is not a slave in group **'{group_name}'**.", color=discord.Color.red())
+                await ctx.send(embed=embed)
                 return
             groups[group_name]["slaves"].remove(guild_id)
-        await ctx.send(f"Server {guild_name_or_id} removed as a slave from sync group '{group_name}'.")
+        embed = discord.Embed(title="Slave Server Removed", description=f"Server **{guild_name_or_id}** removed as a slave from sync group **'{group_name}'**.", color=discord.Color.green())
+        await ctx.send(embed=embed)
 
 
     @rolesync.command(name="addrole")
@@ -136,28 +170,34 @@ class RoleSyncer(commands.Cog):
         """Adds a role name to be synced for a specific group. Case-sensitive."""
         async with self.config.sync_groups() as groups:
             if group_name not in groups:
-                await ctx.send(f"Group '{group_name}' not found.")
+                embed = discord.Embed(title="Error", description=f"Group '{group_name}' not found.", color=discord.Color.red())
+                await ctx.send(embed=embed)
                 return
             if "roles" not in groups[group_name]:
                  groups[group_name]["roles"] = []
             if role_name in groups[group_name]["roles"]:
-                await ctx.send(f"Role name `{role_name}` is already configured for sync in group '{group_name}'.")
+                embed = discord.Embed(title="Info", description=f"Role name `{role_name}` is already configured for sync in group **'{group_name}'**.", color=discord.Color.blue())
+                await ctx.send(embed=embed)
                 return
             groups[group_name]["roles"].append(role_name)
-        await ctx.send(f"Role name `{role_name}` will now be synced for group '{group_name}'.")
+        embed = discord.Embed(title="Sync Role Added", description=f"Role name `{role_name}` will now be synced for group **'{group_name}'**.", color=discord.Color.green())
+        await ctx.send(embed=embed)
 
     @rolesync.command(name="removerole")
     async def rolesync_removerole(self, ctx: commands.Context, group_name: str, *, role_name: str):
         """Removes a role name from being synced for a specific group."""
         async with self.config.sync_groups() as groups:
             if group_name not in groups:
-                await ctx.send(f"Group '{group_name}' not found.")
+                embed = discord.Embed(title="Error", description=f"Group '{group_name}' not found.", color=discord.Color.red())
+                await ctx.send(embed=embed)
                 return
             if role_name not in groups[group_name].get("roles", []):
-                await ctx.send(f"Role name `{role_name}` is not configured for sync in group '{group_name}'.")
+                embed = discord.Embed(title="Error", description=f"Role name `{role_name}` is not configured for sync in group **'{group_name}'**.", color=discord.Color.red())
+                await ctx.send(embed=embed)
                 return
             groups[group_name]["roles"].remove(role_name)
-        await ctx.send(f"Role name `{role_name}` will no longer be synced for group '{group_name}'.")
+        embed = discord.Embed(title="Sync Role Removed", description=f"Role name `{role_name}` will no longer be synced for group **'{group_name}'**.", color=discord.Color.green())
+        await ctx.send(embed=embed)
 
 
     @rolesync.command(name="toggle")
@@ -166,7 +206,8 @@ class RoleSyncer(commands.Cog):
         current_status = await self.config.enabled()
         await self.config.enabled.set(not current_status)
         status = "enabled" if not current_status else "disabled"
-        await ctx.send(f"Role synchronization is now globally {status}.")
+        embed = discord.Embed(title="Role Synchronization Toggled", description=f"Role synchronization is now globally **{status}**.", color=discord.Color.green())
+        await ctx.send(embed=embed)
 
     @rolesync.command(name="forcesync")
     @checks.admin_or_permissions(administrator=True)
@@ -176,10 +217,12 @@ class RoleSyncer(commands.Cog):
         Optionally specify a group name to sync only that group.
         """
         if not await self.config.enabled():
-            await ctx.send("Role synchronization is globally disabled. Enable it first with `[p]rolesync toggle`.")
+            embed = discord.Embed(title="Error", description=f"Role synchronization is globally disabled. Enable it first with `{ctx.prefix}rolesync toggle`.", color=discord.Color.red())
+            await ctx.send(embed=embed)
             return
 
-        await ctx.send("Starting role synchronization from master servers... This may take a while.")
+        embed = discord.Embed(title="Force Sync Started", description="Starting role synchronization from master servers... This may take a while.", color=discord.Color.blue())
+        initial_message = await ctx.send(embed=embed)
         all_groups: SyncGroups = await self.config.sync_groups()
         groups_to_sync = {}
 
@@ -187,13 +230,15 @@ class RoleSyncer(commands.Cog):
             if group_name in all_groups:
                 groups_to_sync[group_name] = all_groups[group_name]
             else:
-                await ctx.send(f"Group '{group_name}' not found.")
+                embed = discord.Embed(title="Error", description=f"Group '{group_name}' not found.", color=discord.Color.red())
+                await initial_message.edit(embed=embed)
                 return
         else:
             groups_to_sync = all_groups
 
         if not groups_to_sync:
-            await ctx.send("No sync groups configured or specified group not found.")
+            embed = discord.Embed(title="Error", description="No sync groups configured or specified group not found.", color=discord.Color.red())
+            await initial_message.edit(embed=embed)
             return
 
         processed_users = 0
@@ -249,7 +294,12 @@ class RoleSyncer(commands.Cog):
                             await self._sync_member_roles(master_member, master_guild, slave_member, slave_guild, to_add_slave, to_remove_slave, allowed_roles)
                             sync_actions += len(to_add_slave) + len(to_remove_slave)
 
-        await ctx.send(f"Master->Slave role synchronization complete. Processed {processed_users} user instances across master/slave pairs, performing {sync_actions} role adjustments based on configured roles.")
+        embed = discord.Embed(
+            title="Force Sync Complete",
+            description=f"Master->Slave role synchronization complete.\nProcessed **{processed_users}** user instances across master/slave pairs.\nPerformed **{sync_actions}** role adjustments based on configured roles.",
+            color=discord.Color.green()
+        )
+        await initial_message.edit(embed=embed)
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
