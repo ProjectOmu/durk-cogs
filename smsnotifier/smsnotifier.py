@@ -88,15 +88,6 @@ class SMSNotifier(commands.Cog):
             self.guild_id = guild_id
             self.existing_config_id = existing_config["config_id"] if existing_config else None
 
-            self.config_name = TextInput(
-                label="Configuration Name (e.g., Mod Alerts)",
-                style=TextStyle.short,
-                placeholder="A friendly name for this rule",
-                default=existing_config.get("name") if existing_config else None,
-                required=True,
-            )
-            self.add_item(self.config_name)
-
             self.channel = TextInput(
                 label="Discord Channel ID or Name",
                 style=TextStyle.short,
@@ -179,7 +170,7 @@ class SMSNotifier(commands.Cog):
 
             new_config_entry = {
                 "config_id": self.existing_config_id or str(uuid.uuid4()),
-                "name": self.config_name.value.strip(),
+                "name": f"Rule for #{target_channel.name}",
                 "channel_id": target_channel.id,
                 "recipient_phone_number": recipient_phone,
                 "twilio_account_sid": self.twilio_account_sid.value.strip(),
@@ -262,7 +253,7 @@ class SMSNotifier(commands.Cog):
             status = "Enabled" if conf.get("is_enabled", False) else "Disabled"
             recipient_phone_masked = mask_phone_number(conf.get("recipient_phone_number", "N/A"))
             
-            field_name = f"{conf.get('name', 'Unnamed Rule')} (ID: `{conf.get('config_id', 'N/A')[:8]}`)"
+            field_name = f"{conf.get('name', f'Rule ID: {conf.get('config_id', 'N/A')[:8]}')} (ID: `{conf.get('config_id', 'N/A')[:8]}`)"
             field_value = (
                 f"Channel: {channel_mention}\n"
                 f"Recipient: {recipient_phone_masked}\n"
@@ -304,8 +295,7 @@ class SMSNotifier(commands.Cog):
             return
 
         await self._save_guild_configs(interaction.guild_id, configs_to_keep)
-        removed_config_name = next((c.get("name", "Unnamed Rule") for c in configs if c.get("config_id") == config_id), "Unknown Rule")
-        await interaction.response.send_message(f"Successfully removed SMS notification rule: '{removed_config_name}' (ID: `{config_id}`).", ephemeral=True)
+        await interaction.response.send_message(f"Successfully removed SMS notification rule with ID: `{config_id}`.", ephemeral=True)
 
     @smsnotifier_group.command(name="toggle")
     @app_commands.describe(config_id="The ID of the rule to enable/disable.")
@@ -326,7 +316,6 @@ class SMSNotifier(commands.Cog):
             if conf.get("config_id") == config_id:
                 conf["is_enabled"] = not conf.get("is_enabled", False)
                 new_status_str = "enabled" if conf["is_enabled"] else "disabled"
-                config_name = conf.get("name", "Unnamed Rule")
                 updated = True
                 break
         
@@ -335,8 +324,9 @@ class SMSNotifier(commands.Cog):
             return
 
         await self._save_guild_configs(interaction.guild_id, configs)
+        config_display_name = next((c.get("name", f"Rule ID: {config_id[:8]}") for c in configs if c.get("config_id") == config_id), f"Rule ID: {config_id[:8]}")
         await interaction.response.send_message(
-            f"SMS notification rule '{config_name}' (ID: `{config_id}`) has been {new_status_str}.",
+            f"SMS notification rule '{config_display_name}' (ID: `{config_id}`) has been {new_status_str}.",
             ephemeral=True
         )
 
@@ -371,7 +361,7 @@ class SMSNotifier(commands.Cog):
 
 
         embed = discord.Embed(
-            title=f"Details for Rule: {config_to_view.get('name', 'Unnamed Rule')}",
+            title=f"Details for {config_to_view.get('name', f'Rule ID: {config_id[:8]}')}",
             color=await self.bot.get_embed_color(interaction.channel)
         )
         embed.add_field(name="Config ID", value=f"`{config_to_view.get('config_id', 'N/A')}`", inline=False)
