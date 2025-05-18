@@ -1,0 +1,12 @@
+{
+  "author": ["Durk"],
+  "name": "SMSNotifier",
+  "short": "Sends SMS notifications for messages in specified channels via Twilio.",
+  "description": "Monitors specified Discord channels and forwards new messages as SMS alerts to configured phone numbers using the Twilio API. Each channel-to-phone-number link is a distinct configuration entry.",
+  "tags": ["sms", "notifications", "twilio", "alerts", "messaging"],
+  "requirements": ["twilio"],
+  "min_bot_version": "3.5.0",
+  "end_user_data_statement": "This cog stores Twilio API credentials (Account SID, Auth Token, Sending Phone Number), recipient phone numbers, and channel IDs per server configuration. User IDs of those who create configurations are also stored. Twilio Auth Tokens and recipient phone numbers are masked in user-facing list/view commands for privacy.",
+  "permissions": ["manage_guild"],
+  "type": "COG"
+}
