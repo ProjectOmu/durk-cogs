@@ -253,7 +253,9 @@ class SMSNotifier(commands.Cog):
             status = "Enabled" if conf.get("is_enabled", False) else "Disabled"
             recipient_phone_masked = mask_phone_number(conf.get("recipient_phone_number", "N/A"))
             
-            field_name = f"{conf.get('name', f'Rule ID: {conf.get('config_id', 'N/A')[:8]}')} (ID: `{conf.get('config_id', 'N/A')[:8]}`)"
+            config_id_short = conf.get('config_id', 'N/A')[:8]
+            default_name = f'Rule ID: {config_id_short}'
+            field_name = f"{conf.get('name', default_name)} (ID: `{config_id_short}`)"
             field_value = (
                 f"Channel: {channel_mention}\n"
                 f"Recipient: {recipient_phone_masked}\n"
