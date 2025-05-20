@@ -396,6 +396,15 @@ class MessageFilter(commands.Cog):
         for regex_pattern, replacement, flags in patterns:
             content = re.sub(regex_pattern, replacement, content, flags=flags)
         
+        # Remove zero-width and other invisible characters
+        # U+200B: Zero Width Space
+        # U+200C: Zero Width Non-Joiner
+        # U+200D: Zero Width Joiner
+        # U+FEFF: Zero Width No-Break Space / BOM
+        # U+2060-U+206F: Invisible formatting (Word Joiner, Invisible Separator, etc.)
+        # U+180E: Mongolian Vowel Separator
+        content = re.sub(r'[\u200b-\u200d\ufeff\u2060-\u206f\u180e]', '', content)
+        
         content = re.sub(r'[~|*_`-]+', '', content)
         return content.lower()
 
