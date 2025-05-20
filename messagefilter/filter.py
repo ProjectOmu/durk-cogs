@@ -383,29 +383,33 @@ class MessageFilter(commands.Cog):
         return re.compile(pattern)
         
     def strip_markdown(self, content):
-        patterns = [
-            (r'```.*?```', '', re.DOTALL),                # Code blocks
-            (r'`[^`]*`', '', 0),                          # Inline code
-            (r':[^:]+:', '', 0),                          # Emoji tags
-            (r'(~{2,}|\|{2,})(.*?)\1', '', re.DOTALL),    # Spoilers/strikethrough
-            (r'\[([^\]]+)\]\([^\)]+\)', r'\1', 0),        # Hyperlinks
-            (r'(\*\*|__|\*)(.*?)\1', r'\2', 0),           # Bold/italic/underline
-            (r'\n.*?#-.*?\n', '\n', 0)                    # Special line patterns
-        ]
+        invisible_chars_pattern = r'[\u200B-\u200D\uFEFF\u2060-\u206F\u180E\u00AD\u200E\u200F\u202A-\u202E\u206A-\u206F]'
+        content = re.sub(invisible_chars_pattern, '', content)
+
+        content = re.sub(r'```.*?```', ' ', content, flags=re.DOTALL | re.MULTILINE)  # Multi-line code blocks
+        content = re.sub(r'`[^`]+?`', ' ', content)  # Inline code
+        content = re.sub(r'\|\|(.*?)\|\|', ' ', content, flags=re.DOTALL)  # Spoilers
+        content = re.sub(r':[a-zA-Z0-9_+-]+:', ' ', content)  # Emoji tags
+
+        content = re.sub(r'~~(.*?)~~', r'\1', content, flags=re.DOTALL) # Strikethrough
+        content = re.sub(r'\[([^\]\n]+)\]\([^\)]+\)', r'\1', content)  # Hyperlinks (keep link text)
+
+        content = re.sub(r'\*\*\*(.*?)\*\*\*', r'\1', content, flags=re.DOTALL)  # Bold Italic
+        content = re.sub(r'\*\*(.*?)\*\*', r'\1', content, flags=re.DOTALL)      # Bold
+        content = re.sub(r'__(.*?)__', r'\1', content, flags=re.DOTALL)          # Underline (Discord uses this for underline)
+        content = re.sub(r'\*([^\s\*](?:.*?[^\s\*])?)\*', r'\1', content, flags=re.DOTALL) # Italic *text* (ensure not empty and not just spaces)
+        content = re.sub(r'_([^\s_](?:.*?[^\s_])?)_', r'\1', content, flags=re.DOTALL) # Italic _text_ (ensure not empty and not just spaces)
+
+        content = re.sub(r'^(>>> ?|>> ?|> ?)(.*)', r'\2', content, flags=re.MULTILINE) # Block quotes, keep content
+        content = re.sub(r'^#+\s*(.+)', r'\1', content, flags=re.MULTILINE)     # Headers, keep content
+
+        lines = content.split('\n')
+        lines = [line for line in lines if '#-' not in line]
+        content = '\n'.join(lines)
+
+        content = re.sub(r'[~|*_`#-]', ' ', content)
+        content = re.sub(r'\s+', ' ', content).strip()
         
-        for regex_pattern, replacement, flags in patterns:
-            content = re.sub(regex_pattern, replacement, content, flags=flags)
-        
-        # Remove zero-width and other invisible characters
-        # U+200B: Zero Width Space
-        # U+200C: Zero Width Non-Joiner
-        # U+200D: Zero Width Joiner
-        # U+FEFF: Zero Width No-Break Space / BOM
-        # U+2060-U+206F: Invisible formatting (Word Joiner, Invisible Separator, etc.)
-        # U+180E: Mongolian Vowel Separator
-        content = re.sub(r'[\u200b-\u200d\ufeff\u2060-\u206f\u180e]', '', content)
-        
-        content = re.sub(r'[~|*_`-]+', '', content)
         return content.lower()
 
     async def log_filtered_message(self, message):
