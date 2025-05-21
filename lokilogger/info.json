@@ -1,0 +1,10 @@
+{
+  "author": ["Durk"],
+  "install_msg": "Thanks for installing LokiLogger! Use `[p]help LokiLogger` for a list of commands.",
+  "name": "LokiLogger",
+  "short": "Fetches Loki logs and posts them to a channel.",
+  "description": "A Redbot cog to periodically fetch error logs from a Loki API, post them to a designated Discord channel, and optionally ping a role.",
+  "tags": ["loki", "logs", "error", "monitoring"],
+  "requirements": ["aiohttp"],
+  "end_user_data_statement": "This cog stores Loki API endpoint, channel ID, and role ID for its operation."
+}
