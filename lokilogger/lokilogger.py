@@ -69,7 +69,7 @@ class LokiLogger(commands.Cog):
         embed = discord.Embed(title=embed_title, description=embed_description, color=embed_color)
 
         for i, entry in enumerate(logs_on_this_page):
-            server_label = entry['stream'].get('server', entry['stream'].get('instance', 'Unknown Source'))
+            server_label = entry['stream'].get('Server', entry['stream'].get('instance', 'Unknown Source'))
             first_line = entry['message'].split('\n', 1)[0]
             max_field_value_len = 1000 
             if len(first_line) > max_field_value_len - 10:
