@@ -75,7 +75,7 @@ class LokiLogger(commands.Cog):
             "query": query,
             "start": str(start_ts_ns + 1),
             "end": str(end_ts_ns),
-            "limit": 5,
+            "limit": 50,
             "direction": "forward",
         }
 
@@ -152,8 +152,6 @@ class LokiLogger(commands.Cog):
             
             if new_latest_timestamp_ns_str is None or int(ts_ns) > int(new_latest_timestamp_ns_str):
                 new_latest_timestamp_ns_str = ts_ns
-            
-            await asyncio.sleep(1)
 
         if new_latest_timestamp_ns_str != last_timestamp_ns_str and new_latest_timestamp_ns_str is not None:
             await self.config.guild(guild).last_timestamp.set(new_latest_timestamp_ns_str)
