@@ -132,11 +132,15 @@ class LokiLogger(commands.Cog):
             stream_labels = entry["stream"]
             label_str = ", ".join([f"`{k}`=`{v}`" for k, v in stream_labels.items()])
             
-            max_log_line_len = 1900 - len(label_str)
+            max_log_line_len = 1800 - len(label_str)
             if len(msg) > max_log_line_len:
                 msg = msg[:max_log_line_len] + "... (truncated)"
 
-            formatted_message = f"{ping_content}**Loki Log:** [{label_str}]\n```\n{msg}\n```\nTimestamp: `{ts_ns}`"
+            ts_seconds = int(ts_ns) // 1_000_000_000
+
+            discord_timestamp = f"<t:{ts_seconds}:F> (<t:{ts_seconds}:R>)"
+
+            formatted_message = f"{ping_content}**Loki Log:** [{label_str}]\n```\n{msg}\n```\nTimestamp: {discord_timestamp}"
             ping_content = ""
 
             try:
