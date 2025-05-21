@@ -132,7 +132,7 @@ class LokiLogger(commands.Cog):
             "query": query,
             "start": str(start_ts_ns + 1),
             "end": str(end_ts_ns),
-            "limit": 5000, 
+            "limit": 1000, 
             "direction": "forward",
         }
 
