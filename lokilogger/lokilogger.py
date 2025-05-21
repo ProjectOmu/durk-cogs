@@ -39,7 +39,7 @@ class LokiLogger(commands.Cog):
     def cog_unload(self):
         self.loki_task.cancel()
 
-    @tasks.loop(seconds=10)
+    @tasks.loop(seconds=30)
     async def loki_task(self):
         all_guilds = await self.config.all_guilds()
         for guild_id, settings in all_guilds.items():
@@ -150,7 +150,7 @@ class LokiLogger(commands.Cog):
         logs_for_interaction = raw_log_entries[:len(self.number_emojis)]
 
         for i, entry in enumerate(logs_for_interaction):
-            server_label = entry['stream'].get('server', entry['stream'].get('instance', 'Unknown Source'))
+            server_label = entry['stream'].get('Server', entry['stream'].get('instance', 'Unknown Source'))
             
             first_line = entry['message'].split('\n', 1)[0]
             max_field_value_len = 1000
