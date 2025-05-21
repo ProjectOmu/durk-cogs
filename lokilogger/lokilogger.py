@@ -137,16 +137,39 @@ class LokiLogger(commands.Cog):
         first_log_ts_seconds = int(first_log_ts_ns) // 1_000_000_000
         last_log_ts_seconds = int(last_log_ts_ns) // 1_000_000_000
 
-        summary_message_content = (
-            f"{ping_content}Found **{num_logs}** new log entr{'ies' if num_logs > 1 else 'y'} "
+        embed_title = "Loki Log Summary"
+        embed_description = (
+            f"Found **{num_logs}** new log entr{'ies' if num_logs > 1 else 'y'} "
             f"between <t:{first_log_ts_seconds}:T> and <t:{last_log_ts_seconds}:T>.\n"
-            f"React with a number to view a specific log (oldest to newest)."
+            f"React with an emoji to view full details for the corresponding log."
         )
+        embed_color = guild.me.color if guild.me else discord.Color.blue()
+
+        embed = discord.Embed(title=embed_title, description=embed_description, color=embed_color)
+
+        logs_for_interaction = raw_log_entries[:len(self.number_emojis)]
+
+        for i, entry in enumerate(logs_for_interaction):
+            server_label = entry['stream'].get('server', entry['stream'].get('instance', 'Unknown Source'))
+            
+            first_line = entry['message'].split('\n', 1)[0]
+            max_field_value_len = 1000
+            if len(first_line) > max_field_value_len - 10:
+                first_line = first_line[:max_field_value_len - 13] + "..."
+
+            field_name = f"{self.number_emojis[i]} Log from `{server_label}`"
+            field_value = f"```{first_line}```"
+            embed.add_field(name=field_name, value=field_value, inline=False)
+        
+        if num_logs > len(logs_for_interaction):
+            embed.set_footer(text=f"Showing first {len(logs_for_interaction)} of {num_logs} logs. Full details via reactions.")
+        else:
+            embed.set_footer(text="Full details available via reactions for 1 hour.")
 
         try:
-            summary_message = await channel.send(summary_message_content)
+            summary_message = await channel.send(content=ping_content if ping_content else None, embed=embed)
         except discord.HTTPException as e:
-            log.error(f"[{guild.id}] Discord API error sending summary log message: {e}")
+            log.error(f"[{guild.id}] Discord API error sending summary log embed: {e}")
             return
 
         logs_for_interaction = raw_log_entries[:len(self.number_emojis)]
