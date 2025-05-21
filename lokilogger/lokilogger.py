@@ -93,7 +93,7 @@ class LokiLogger(commands.Cog):
             del self.interactive_logs[message_id]
             log.debug(f"Cleaned up interactive log for message ID: {message_id}")
 
-    @tasks.loop(hours=1)
+    @tasks.loop(minutes=5)
     async def loki_task(self):
         all_guilds = await self.config.all_guilds()
         for guild_id, settings in all_guilds.items():
@@ -132,7 +132,7 @@ class LokiLogger(commands.Cog):
             "query": query,
             "start": str(start_ts_ns + 1),
             "end": str(end_ts_ns),
-            "limit": 1000000, 
+            "limit": 5000, 
             "direction": "forward",
         }
 
