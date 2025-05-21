@@ -30,6 +30,10 @@ class LokiLogger(commands.Cog):
             "enabled": False,
         }
         self.config.register_guild(**default_guild)
+        
+        self.interactive_logs = {}
+        self.number_emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+        
         self.loki_task.start()
 
     def cog_unload(self):
@@ -102,21 +106,22 @@ class LokiLogger(commands.Cog):
             log.info(f"[{guild.id}] No new logs found or unexpected response structure from Loki.")
             return
 
-        log_entries = []
+        raw_log_entries = []
         for stream in data["data"]["result"]:
             for value_pair in stream["values"]:
-                log_entries.append(
+                raw_log_entries.append(
                     {"timestamp": value_pair[0], "message": value_pair[1], "stream": stream.get("stream", {})}
                 )
-        log_entries.sort(key=lambda x: int(x["timestamp"]))
+        raw_log_entries.sort(key=lambda x: int(x["timestamp"]))
 
-        if not log_entries:
+        if not raw_log_entries:
             log.info(f"[{guild.id}] No new log entries after parsing.")
             return
 
-        log.info(f"[{guild.id}] Found {len(log_entries)} new log entries.")
+        log.info(f"[{guild.id}] Found {len(raw_log_entries)} new log entries.")
 
-        new_latest_timestamp_ns_str = last_timestamp_ns_str
+        new_latest_timestamp_ns_str = raw_log_entries[-1]["timestamp"]
+
         ping_content = ""
         if settings.get("role_id"):
             role = guild.get_role(settings["role_id"])
@@ -125,37 +130,109 @@ class LokiLogger(commands.Cog):
             else:
                 log.warning(f"[{guild.id}] Configured role ID {settings['role_id']} not found.")
 
+        num_logs = len(raw_log_entries)
+        first_log_ts_ns = raw_log_entries[0]["timestamp"]
+        last_log_ts_ns = new_latest_timestamp_ns_str
 
-        for entry in log_entries:
-            ts_ns = entry["timestamp"]
-            msg = entry["message"]
-            stream_labels = entry["stream"]
-            label_str = ", ".join([f"`{k}`=`{v}`" for k, v in stream_labels.items()])
-            
-            max_log_line_len = 1800 - len(label_str)
-            if len(msg) > max_log_line_len:
-                msg = msg[:max_log_line_len] + "... (truncated)"
+        first_log_ts_seconds = int(first_log_ts_ns) // 1_000_000_000
+        last_log_ts_seconds = int(last_log_ts_ns) // 1_000_000_000
 
-            ts_seconds = int(ts_ns) // 1_000_000_000
+        summary_message_content = (
+            f"{ping_content}Found **{num_logs}** new log entr{'ies' if num_logs > 1 else 'y'} "
+            f"between <t:{first_log_ts_seconds}:T> and <t:{last_log_ts_seconds}:T>.\n"
+            f"React with a number to view a specific log (oldest to newest)."
+        )
 
-            discord_timestamp = f"<t:{ts_seconds}:F> (<t:{ts_seconds}:R>)"
+        try:
+            summary_message = await channel.send(summary_message_content)
+        except discord.HTTPException as e:
+            log.error(f"[{guild.id}] Discord API error sending summary log message: {e}")
+            return
 
-            formatted_message = f"{ping_content}**Loki Log:** [{label_str}]\n```\n{msg}\n```\nTimestamp: {discord_timestamp}"
-            ping_content = ""
-
+        logs_for_interaction = raw_log_entries[:len(self.number_emojis)]
+        self.interactive_logs[summary_message.id] = logs_for_interaction
+        
+        for i in range(min(num_logs, len(self.number_emojis))):
             try:
-                await channel.send(formatted_message)
-            except discord.HTTPException as e:
-                log.error(f"[{guild.id}] Discord API error sending log: {e}")
-                await channel.send(f"Error sending log to Discord: `{e}`. The log might be too long or malformed.")
+                await summary_message.add_reaction(self.number_emojis[i])
+            except discord.HTTPException:
+                log.warning(f"[{guild.id}] Failed to add reaction {self.number_emojis[i]} to summary message.")
                 break
-            
-            if new_latest_timestamp_ns_str is None or int(ts_ns) > int(new_latest_timestamp_ns_str):
-                new_latest_timestamp_ns_str = ts_ns
+
+        asyncio.create_task(self._cleanup_interactive_log(summary_message.id, delay=3600))
 
         if new_latest_timestamp_ns_str != last_timestamp_ns_str and new_latest_timestamp_ns_str is not None:
             await self.config.guild(guild).last_timestamp.set(new_latest_timestamp_ns_str)
             log.info(f"[{guild.id}] Updated last_timestamp to {new_latest_timestamp_ns_str}")
+
+    async def _cleanup_interactive_log(self, message_id: int, delay: int):
+        """Removes an interactive log entry after a delay."""
+        await asyncio.sleep(delay)
+        if message_id in self.interactive_logs:
+            del self.interactive_logs[message_id]
+            log.debug(f"Cleaned up interactive log for message ID: {message_id}")
+
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction: discord.Reaction, user: discord.User):
+        """Handles reactions on summary messages to display specific logs."""
+        if user.bot:
+            return
+
+        message = reaction.message
+        if message.id not in self.interactive_logs:
+            return
+
+        try:
+            emoji_index = self.number_emojis.index(str(reaction.emoji))
+        except ValueError:
+            return
+
+        if not message.guild or not message.channel:
+            log.warning(f"Could not process reaction for message {message.id}, guild or channel not found.")
+            return
+            
+        guild_id = message.guild.id
+        
+        log_batch = self.interactive_logs.get(message.id)
+        if not log_batch or emoji_index >= len(log_batch):
+            log.warning(f"[{guild_id}] Invalid reaction index {emoji_index} for message {message.id}")
+            return
+
+        entry_to_display = log_batch[emoji_index]
+        
+        ts_ns = entry_to_display["timestamp"]
+        msg_text = entry_to_display["message"]
+        stream_labels = entry_to_display["stream"]
+        label_str = ", ".join([f"`{k}`=`{v}`" for k, v in stream_labels.items()])
+        
+        max_log_line_len = 1800 - len(label_str)
+        if len(msg_text) > max_log_line_len:
+            msg_text = msg_text[:max_log_line_len] + "... (truncated)"
+
+        ts_seconds = int(ts_ns) // 1_000_000_000
+        discord_timestamp = f"<t:{ts_seconds}:F> (<t:{ts_seconds}:R>)"
+
+        settings = await self.config.guild(message.guild).all()
+        ping_content = ""
+        if settings.get("role_id"):
+            role = message.guild.get_role(settings["role_id"])
+            if role:
+                pass
+
+        formatted_message = (
+            f"{ping_content}**Log Detail ({emoji_index + 1}/{len(log_batch)}):** [{label_str}]\n"
+            f"```\n{msg_text}\n```\n"
+            f"Timestamp: {discord_timestamp}"
+        )
+
+        try:
+            await message.channel.send(formatted_message)
+        except discord.HTTPException as e:
+            log.error(f"[{guild_id}] Discord API error sending detailed log: {e}")
+            try:
+                await message.channel.send(f"Error displaying log detail: {e}")
+            except discord.HTTPException:
+                pass
 
     @loki_task.before_loop
     async def before_loki_task(self):
