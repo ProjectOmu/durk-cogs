@@ -35,7 +35,7 @@ class LokiLogger(commands.Cog):
     def cog_unload(self):
         self.loki_task.cancel()
 
-    @tasks.loop(minutes=5)
+    @tasks.loop(seconds=10)
     async def loki_task(self):
         all_guilds = await self.config.all_guilds()
         for guild_id, settings in all_guilds.items():
