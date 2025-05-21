@@ -25,7 +25,7 @@ class LokiLogger(commands.Cog):
             "loki_url": None,
             "channel_id": None,
             "role_id": None,
-            "query": '{stream="error"}',
+            "query": '{level="error"}',
             "last_timestamp": None,
             "enabled": False,
         }
@@ -311,8 +311,8 @@ class LokiLogger(commands.Cog):
         """
         Set the Loki query to fetch logs.
 
-        Default: `{stream="error"}`
-        Example: [p]lokiset query {namespace="prod", level="error"} |= "timeout"
+        Default: `{level="error"}`
+        Example: [p]lokiset query {App="Robust.Server", level="error"} |= "timeout"
         """
         await self.config.guild(ctx.guild).query.set(query)
         await ctx.send(f"Loki query set to: `{query}`")
