@@ -1,4 +1,5 @@
 import discord
+import nacl
 from redbot.core import commands
 
 class VoiceConnector(commands.Cog):
