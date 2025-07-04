@@ -4,7 +4,7 @@
   "short": "A simple cog to make the bot join and leave a specified voice channel.",
   "description": "A simple cog to make the bot join and leave a specified voice channel.",
   "tags": ["voice", "utility", "connector"],
-  "requirements": ["twilio"],
+  "requirements": ["PyNaCl"],
   "min_bot_version": "3.5.0",
   "end_user_data_statement": "Collects no data.",
   "permissions": ["manage_guild"],
