@@ -1,9 +1,12 @@
 {
-    "author": ["Durk"],
-    "description": "A simple cog to make the bot join and leave a specified voice channel.",
-    "install_msg": "Thanks for installing the Voice Connector cog. Use `[p]vcjoin <channel>` to get started.",
-    "name": "VoiceConnector",
-    "short": "Join/Leave a VC.",
-    "requirements": ["PyNaCl"],
-    "tags": ["voice", "utility", "connector"]
+  "author": ["Durk"],
+  "name": "voiceconnector",
+  "short": "A simple cog to make the bot join and leave a specified voice channel.",
+  "description": "A simple cog to make the bot join and leave a specified voice channel.",
+  "tags": ["voice", "utility", "connector"],
+  "requirements": ["twilio"],
+  "min_bot_version": "3.5.0",
+  "end_user_data_statement": "Collects no data.",
+  "permissions": ["manage_guild"],
+  "type": "COG"
 }
