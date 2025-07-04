@@ -1,0 +1,9 @@
+{
+    "author": ["Durk"],
+    "description": "A simple cog to make the bot join and leave a specified voice channel.",
+    "install_msg": "Thanks for installing the Voice Connector cog. Use `[p]vcjoin <channel>` to get started.",
+    "name": "VoiceConnector",
+    "short": "Join/Leave a VC.",
+    "requirements": ["PyNaCl"],
+    "tags": ["voice", "utility", "connector"]
+}
