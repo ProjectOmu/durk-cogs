@@ -92,14 +92,15 @@ class MastodonFeeder(commands.Cog):
         new_latest_post_id = timeline[0]["id"]
 
         for post in reversed(timeline):
+            if post['sensitive']:
+                continue
             soup = BeautifulSoup(post['content'], 'html.parser')
             content = soup.get_text()
             if len(content) > 1024:
                 content = content[:1021] + "..."
 
             embed = discord.Embed(
-                description=content,
-                url=post['url'],
+                description=f"[{content}]({post['url']})",
                 timestamp=post['created_at'],
                 color=await self.bot.get_embed_color(channel)
             )
@@ -109,7 +110,7 @@ class MastodonFeeder(commands.Cog):
             if post['media_attachments']:
                 embed.set_image(url=post['media_attachments'][0]['url'])
 
-            embed.set_footer(text="Mastodon", icon_url="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Mastodon_Logotype_%28Simple%29.svg/2048px-Mastodon_Logotype_%28Simple%29.svg.png")
+            embed.set_footer(text="Mastodon", icon_url="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Mastodon_Logotype_%28Simple%29.svg/2048px-Mastodon_Logotype_%28Simple%29.svg.png", url=instance_url)
 
             await channel.send(embed=embed)
 
