@@ -7,6 +7,7 @@ from discord.ext import tasks
 from redbot.core import Config, commands
 from redbot.core.bot import Red
 from mastodon import Mastodon
+from bs4 import BeautifulSoup
 
 log = logging.getLogger("red.durk-cogs.mastodonfeeder")
 
@@ -80,7 +81,7 @@ class MastodonFeeder(commands.Cog):
 
         try:
             mastodon = Mastodon(api_base_url=instance_url)
-            timeline = mastodon.timeline_public(since_id=last_post_id, limit=40)
+            timeline = mastodon.timeline_public(since_id=last_post_id, limit=40, local=True)
         except Exception as e:
             log.error(f"[{guild.id}] Error connecting to Mastodon instance: {e}")
             return
@@ -91,7 +92,8 @@ class MastodonFeeder(commands.Cog):
         new_latest_post_id = timeline[0]["id"]
 
         for post in reversed(timeline):
-            content = post['content']
+            soup = BeautifulSoup(post['content'], 'html.parser')
+            content = soup.get_text()
             if len(content) > 1024:
                 content = content[:1021] + "..."
 

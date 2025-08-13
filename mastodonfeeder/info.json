@@ -5,6 +5,6 @@
   "short": "Automatically posts embeds of all mastodon posts from an instance to a channel.",
   "description": "A Redbot cog that takes a channel and mastodon instance as a command, then automatically posts embed of all mastodon posts from the instance to the channel.",
   "tags": ["mastodon", "social media", "feed"],
-  "requirements": ["mastodon-py"],
+  "requirements": ["mastodon-py", "beautifulsoup4"],
   "end_user_data_statement": "This cog stores the Mastodon instance URL, channel ID, and the last post ID for its operation."
 }
