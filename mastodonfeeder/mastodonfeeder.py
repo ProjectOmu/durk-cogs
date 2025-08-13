@@ -110,7 +110,7 @@ class MastodonFeeder(commands.Cog):
             if post['media_attachments']:
                 embed.set_image(url=post['media_attachments'][0]['url'])
 
-            embed.set_footer(text="Mastodon", icon_url="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Mastodon_Logotype_%28Simple%29.svg/2048px-Mastodon_Logotype_%28Simple%29.svg.png", url=instance_url)
+            embed.set_footer(text=f"Posted on {instance_url}", icon_url="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Mastodon_Logotype_%28Simple%29.svg/2048px-Mastodon_Logotype_%28Simple%29.svg.png")
 
             await channel.send(embed=embed)
 
