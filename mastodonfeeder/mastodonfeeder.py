@@ -8,6 +8,8 @@ from redbot.core import Config, commands
 from redbot.core.bot import Red
 from mastodon import Mastodon
 from bs4 import BeautifulSoup
+import requests
+from urllib.parse import urlparse
 
 log = logging.getLogger("red.durk-cogs.mastodonfeeder")
 
@@ -92,25 +94,51 @@ class MastodonFeeder(commands.Cog):
         new_latest_post_id = timeline[0]["id"]
 
         for post in reversed(timeline):
+            # Skip sensitive posts
             if post['sensitive']:
+                log.debug(f"Skipping sensitive post {post['id']}")
                 continue
+
             soup = BeautifulSoup(post['content'], 'html.parser')
-            content = soup.get_text()
-            if len(content) > 1024:
-                content = content[:1021] + "..."
+            content = soup.get_text().strip()
+            
+            if not content and post['media_attachments']:
+                 pass
+            elif not content:
+                continue
+
+            if len(content) > 2000:
+                content = content[:1997] + "..."
 
             embed = discord.Embed(
-                description=f"[{content}]({post['url']})",
+                url=post['url'],
                 timestamp=post['created_at'],
                 color=await self.bot.get_embed_color(channel)
             )
+            
+            if content:
+                embed.description = content
 
             embed.set_author(name=f"{post['account']['display_name']} (@{post['account']['acct']})", url=post['account']['url'], icon_url=post['account']['avatar'])
             
             if post['media_attachments']:
-                embed.set_image(url=post['media_attachments'][0]['url'])
+                first_media = post['media_attachments'][0]
+                if not first_media.get('sensitive'):
+                    embed.set_image(url=first_media['url'])
 
-            embed.set_footer(text=f"Posted on {instance_url}", icon_url="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Mastodon_Logotype_%28Simple%29.svg/2048px-Mastodon_Logotype_%28Simple%29.svg.png")
+            parsed_uri = urlparse(instance_url)
+            favicon_url = f"{parsed_uri.scheme}://{parsed_uri.netloc}/favicon.ico"
+            try:
+                response = requests.get(favicon_url, timeout=5)
+                if response.status_code == 200:
+                    icon_url = favicon_url
+                else:
+                    icon_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Mastodon_Logotype_%28Simple%29.svg/2048px-Mastodon_Logotype_%28Simple%29.svg.png"
+            except requests.RequestException:
+                icon_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Mastodon_Logotype_%28Simple%29.svg/2048px-Mastodon_Logotype_%28Simple%29.svg.png"
+
+
+            embed.set_footer(text=f"Posted on {parsed_uri.netloc}", icon_url=icon_url)
 
             await channel.send(embed=embed)
 
