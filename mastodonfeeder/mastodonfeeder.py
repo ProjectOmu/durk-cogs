@@ -138,7 +138,7 @@ class MastodonFeeder(commands.Cog):
                 icon_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Mastodon_Logotype_%28Simple%29.svg/2048px-Mastodon_Logotype_%28Simple%29.svg.png"
 
 
-            embed.set_footer(text=f"Posted on {parsed_uri.netloc}", icon_url=icon_url)
+            embed.set_footer(text=f"Posted on {instance_url}", icon_url=icon_url)
 
             await channel.send(embed=embed)
 
