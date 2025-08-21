@@ -1,0 +1,10 @@
+{
+  "author": ["Aidenkrz"],
+  "install_msg": "Thanks for installing WeekendLocker! Use `[p]help WeekendLocker` for a list of commands.",
+  "name": "WeekendLocker",
+  "short": "Locks channels during the weekend.",
+  "description": "A cog to automatically lock and unlock channels during configurable weekend hours.",
+  "tags": ["moderation", "automation", "channel management"],
+  "requirements": [],
+  "end_user_data_statement": "This cog stores configuration data for which channels to lock and when."
+}
