@@ -26,7 +26,7 @@ class WeekendLocker(commands.Cog):
             "unlock_time": "00:00",
             "lock_day": "saturday",
             "unlock_day": "monday",
-            "timezone": "CST",
+            "timezone": "America/Chicago",
             "enabled": False,
             "locked_channels": {}, # Store lock status and original permissions
         }
@@ -150,6 +150,31 @@ class WeekendLocker(commands.Cog):
         
         await self.config.guild(guild).locked_channels.clear()
 
+    async def check_and_apply_lock(self, guild: discord.Guild):
+        """Check if channels should be locked right now and apply."""
+        guild_settings = await self.config.guild(guild).all()
+        if not guild_settings["enabled"]:
+            return
+
+        tz = pytz.timezone(guild_settings["timezone"])
+        now = datetime.now(tz)
+        
+        event, event_time = await self.get_next_event(guild_settings)
+        
+        # This logic is tricky. A simpler check is to see if we are *between* the lock and unlock times.
+        lock_day = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].index(guild_settings["lock_day"])
+        unlock_day = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].index(guild_settings["unlock_day"])
+        lock_hour, lock_minute = map(int, guild_settings["lock_time"].split(':'))
+        unlock_hour, unlock_minute = map(int, guild_settings["unlock_time"].split(':'))
+
+        # This logic is complex, for now, we will just call the lock/unlock based on the next event
+        # A more robust solution would be needed for edge cases.
+        if event == "unlock": # If the next event is unlock, we should be locked.
+             await self.lock_channels(guild, guild_settings, event_time)
+        else: # If the next event is lock, we should be unlocked
+             await self.unlock_channels(guild, guild_settings)
+
+
     @weekend_lock_task.before_loop
     async def before_weekend_lock_task(self):
         await self.bot.wait_until_ready()
@@ -259,7 +284,7 @@ class WeekendLocker(commands.Cog):
         if on_off:
             await ctx.send("Weekend Locker enabled.")
             # Manually check if channels should be locked right now
-            await self.weekend_lock_task()
+            await self.check_and_apply_lock(ctx.guild)
         else:
             await ctx.send("Weekend Locker disabled.")
             # Manually unlock all channels if disabling
