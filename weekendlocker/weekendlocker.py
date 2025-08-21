@@ -114,39 +114,29 @@ class WeekendLocker(commands.Cog):
                     await self.unlock_channels(guild, guild_settings)
 
     async def lock_channels(self, guild, guild_settings, unlock_time):
+        """Announces lock and marks channels as locked in config."""
         locked_channels_data = {}
         for channel_id in guild_settings["channels"]:
             channel = guild.get_channel(channel_id)
             if channel:
-                overwrites = channel.overwrites_for(guild.default_role)
-                original_send_messages = overwrites.send_messages
-                overwrites.send_messages = False
-                
                 try:
-                    await channel.set_permissions(guild.default_role, overwrite=overwrites)
                     unlock_timestamp = f"<t:{int(unlock_time.timestamp())}:F>"
                     await channel.send(f"This channel is locked until {unlock_timestamp}. Go outside and enjoy your weekend!")
-                    locked_channels_data[str(channel_id)] = {"original_send_messages": original_send_messages}
+                    locked_channels_data[str(channel_id)] = True
                 except discord.Forbidden:
-                    log.warning(f"Failed to lock {channel.name} ({guild.name}). Missing permissions.")
+                    log.warning(f"Failed to send lock message in {channel.name} ({guild.name}).")
         
         await self.config.guild(guild).locked_channels.set(locked_channels_data)
 
-
     async def unlock_channels(self, guild, guild_settings):
-        locked_channels = guild_settings.get("locked_channels", {})
-        for channel_id_str, data in locked_channels.items():
-            channel_id = int(channel_id_str)
+        """Announces unlock and clears locked status from config."""
+        for channel_id in guild_settings["channels"]:
             channel = guild.get_channel(channel_id)
             if channel:
-                overwrites = channel.overwrites_for(guild.default_role)
-                overwrites.send_messages = data.get("original_send_messages", None)
-                
                 try:
-                    await channel.set_permissions(guild.default_role, overwrite=overwrites)
                     await channel.send("Channel unlocked!")
                 except discord.Forbidden:
-                    log.warning(f"Failed to unlock {channel.name} ({guild.name}). Missing permissions.")
+                    log.warning(f"Failed to send unlock message in {channel.name} ({guild.name}).")
         
         await self.config.guild(guild).locked_channels.clear()
 
@@ -161,17 +151,14 @@ class WeekendLocker(commands.Cog):
         
         event, event_time = await self.get_next_event(guild_settings)
         
-        # This logic is tricky. A simpler check is to see if we are *between* the lock and unlock times.
         lock_day = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].index(guild_settings["lock_day"])
         unlock_day = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].index(guild_settings["unlock_day"])
         lock_hour, lock_minute = map(int, guild_settings["lock_time"].split(':'))
         unlock_hour, unlock_minute = map(int, guild_settings["unlock_time"].split(':'))
 
-        # This logic is complex, for now, we will just call the lock/unlock based on the next event
-        # A more robust solution would be needed for edge cases.
-        if event == "unlock": # If the next event is unlock, we should be locked.
+        if event == "unlock":
              await self.lock_channels(guild, guild_settings, event_time)
-        else: # If the next event is lock, we should be unlocked
+        else:
              await self.unlock_channels(guild, guild_settings)
 
 
