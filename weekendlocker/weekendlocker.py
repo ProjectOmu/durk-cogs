@@ -141,25 +141,38 @@ class WeekendLocker(commands.Cog):
         await self.config.guild(guild).locked_channels.clear()
 
     async def check_and_apply_lock(self, guild: discord.Guild):
-        """Check if channels should be locked right now and apply."""
+        """Checks if the current time is within the lock period and applies the correct state."""
         guild_settings = await self.config.guild(guild).all()
         if not guild_settings["enabled"]:
             return
 
         tz = pytz.timezone(guild_settings["timezone"])
         now = datetime.now(tz)
-        
-        event, event_time = await self.get_next_event(guild_settings)
-        
-        lock_day = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].index(guild_settings["lock_day"])
-        unlock_day = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].index(guild_settings["unlock_day"])
+
+        days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+        lock_day_index = days.index(guild_settings["lock_day"])
+        unlock_day_index = days.index(guild_settings["unlock_day"])
+
         lock_hour, lock_minute = map(int, guild_settings["lock_time"].split(':'))
         unlock_hour, unlock_minute = map(int, guild_settings["unlock_time"].split(':'))
 
-        if event == "unlock":
-             await self.lock_channels(guild, guild_settings, event_time)
+        days_since_lock_day = (now.weekday() - lock_day_index + 7) % 7
+        last_lock_date = now - timedelta(days=days_since_lock_day)
+        lock_time = last_lock_date.replace(hour=lock_hour, minute=lock_minute, second=0, microsecond=0)
+
+        days_until_unlock_day = (unlock_day_index - lock_time.weekday() + 7) % 7
+        if days_until_unlock_day == 0 and lock_time.time() >= time(unlock_hour, unlock_minute):
+             days_until_unlock_day = 7
+        
+        unlock_date = lock_time + timedelta(days=days_until_unlock_day)
+        unlock_time = unlock_date.replace(hour=unlock_hour, minute=unlock_minute, second=0, microsecond=0)
+
+        if lock_time <= now < unlock_time:
+            log.info(f"[{guild.name}] Time is within lock period. Locking channels.")
+            await self.lock_channels(guild, guild_settings, unlock_time)
         else:
-             await self.unlock_channels(guild, guild_settings)
+            log.info(f"[{guild.name}] Time is outside lock period. Unlocking channels.")
+            await self.unlock_channels(guild, guild_settings)
 
 
     @weekend_lock_task.before_loop
@@ -270,8 +283,8 @@ class WeekendLocker(commands.Cog):
         await self.config.guild(ctx.guild).enabled.set(on_off)
         if on_off:
             await ctx.send("Weekend Locker enabled.")
-            # Manually check if channels should be locked right now
-            await self.check_and_apply_lock(ctx.guild)
+            # Manually check if channels should be locked right now in the background
+            asyncio.create_task(self.check_and_apply_lock(ctx.guild))
         else:
             await ctx.send("Weekend Locker disabled.")
             # Manually unlock all channels if disabling
