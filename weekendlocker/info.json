@@ -1,5 +1,5 @@
 {
-  "author": ["Aidenkrz"],
+  "author": ["Durk"],
   "install_msg": "Thanks for installing WeekendLocker! Use `[p]help WeekendLocker` for a list of commands.",
   "name": "WeekendLocker",
   "short": "Locks channels during the weekend.",
