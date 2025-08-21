@@ -135,7 +135,7 @@ class WeekendLocker(commands.Cog):
 
     async def unlock_channels(self, guild, guild_settings):
         locked_channels = guild_settings.get("locked_channels", {})
-        for channel_id_str, "data" in locked_channels.items():
+        for channel_id_str, data in locked_channels.items():
             channel_id = int(channel_id_str)
             channel = guild.get_channel(channel_id)
             if channel:
