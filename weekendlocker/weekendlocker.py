@@ -290,3 +290,22 @@ class WeekendLocker(commands.Cog):
             # Manually unlock all channels if disabling
             guild_settings = await self.config.guild(ctx.guild).all()
             await self.unlock_channels(ctx.guild, guild_settings)
+
+    @weekendlockerset.command(name="forcelock")
+    async def wl_forcelock(self, ctx: commands.Context):
+        """
+        Manually lock all configured channels immediately.
+        """
+        guild_settings = await self.config.guild(ctx.guild).all()
+        unlock_time = datetime.now(pytz.timezone(guild_settings["timezone"])) + timedelta(hours=24)
+        await self.lock_channels(ctx.guild, guild_settings, unlock_time)
+        await ctx.send("All configured channels have been manually locked.")
+
+    @weekendlockerset.command(name="forceunlock")
+    async def wl_forceunlock(self, ctx: commands.Context):
+        """
+        Manually unlock all configured channels immediately.
+        """
+        guild_settings = await self.config.guild(ctx.guild).all()
+        await self.unlock_channels(ctx.guild, guild_settings)
+        await ctx.send("All configured channels have been manually unlocked.")
