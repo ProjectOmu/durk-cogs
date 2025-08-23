@@ -309,3 +309,13 @@ class WeekendLocker(commands.Cog):
         guild_settings = await self.config.guild(ctx.guild).all()
         await self.unlock_channels(ctx.guild, guild_settings)
         await ctx.send("All configured channels have been manually unlocked.")
+
+    @weekendlockerset.command(name="getnow")
+    async def wl_getnow(self, ctx: commands.Context):
+        """
+        Shows the current time the bot is using.
+        """
+        guild_settings = await self.config.guild(ctx.guild).all()
+        tz = pytz.timezone(guild_settings["timezone"])
+        now = datetime.now(tz)
+        await ctx.send(f"The current time is: {now.strftime('%A, %Y-%m-%d %H:%M:%S %Z%z')}")
