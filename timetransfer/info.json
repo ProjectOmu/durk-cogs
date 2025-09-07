@@ -1,0 +1,9 @@
+{
+  "author": ["CliveOcelot"],
+  "name": "timetransfer",
+  "short": "A simple cog to make preset timetransfer commands",
+  "description": "A simple cog to make preset timetransfer commands",
+  "tags": ["utility"],
+  "end_user_data_statement": "Collects no data.",
+  "type": "COG"
+}
