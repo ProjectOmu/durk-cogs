@@ -1,0 +1,8 @@
+{
+    "author" : ["sleepyyapril"],
+    "install_msg" : "You installed april's AHelp Replies cog! Good job!",
+    "name" : "SS14 AHelp Replies",
+    "short" : "Allows admins to reply to ahelps from discord.",
+    "description" : "Allows anyone with access to the AHelp channel to reply to in-game AHelps while on discord.",
+    "tags" : ["Space Station 14", "SS14", "SS13", "Space Station 13", "ahelp", "admin", "admin tooling"]
+}
