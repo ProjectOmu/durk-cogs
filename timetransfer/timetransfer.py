@@ -123,7 +123,7 @@ ValidJobs = [
 class TimeTransfer(commands.Cog):
     def __init__(self, bot):
             self.bot = bot
-    ttransfer = app_commands.Group(name="TimeTransfer", description="TimeTransfer related commands")
+    ttransfer = app_commands.Group(name="timetransfer", description="TimeTransfer related commands")
     
     @ttransfer.command(name="format", description="Sends the format used for time transfers")
     async def ttransfer_format(self, interaction: discord.Interaction):
