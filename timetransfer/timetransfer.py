@@ -121,15 +121,15 @@ ValidJobs = [
 ]
 
 
-def converttime(data: str):  # Takes in data in the format "HOURS|MINUETS"
+def converttime(data: str):  # Takes in data in the format "HOURS|MINUTES"
     splitdata = data.split("|")
     hours = splitdata[0]
     hours = re.sub("[^0-9]", "", hours)
     hours = int(hours)
-    minuets = splitdata[1]
-    minuets = re.sub("[^0-9]", "", minuets)
-    minuets = int(minuets)
-    totaltime = ((hours*60)+minuets)
+    minutes = splitdata[1]
+    minutes = re.sub("[^0-9]", "", minutes)
+    minutes = int(minutes)
+    totaltime = ((hours*60)+minutes)
     return totaltime
 
 
@@ -144,13 +144,13 @@ class TimeTransfer(commands.Cog):
         ss14output = "```\nUsername=YOUR_SS14_USERNAME"
         channel = interaction.channel
         for x in FormatJobs:
-            if len(ss14output + "\n" + x + "=HOURS|MINUETS") < 1900:
-                ss14output = ss14output + "\n" + x + "=HOURS|MINUETS"
+            if len(ss14output + "\n" + x + "=HOURS|MINUTES") < 1900:
+                ss14output = ss14output + "\n" + x + "=HOURS|MINUTES"
             else:
                 ss14output = ss14output + "\n```"
                 await channel.send(ss14output)
                 ss14output = "```\nUsername=YOUR_SS14_USERNAME"
-                ss14output = ss14output + "\n" + x + "=HOURS|MINUETS"
+                ss14output = ss14output + "\n" + x + "=HOURS|MINUTES"
         ss14output = ss14output + "\n```"
         await interaction.response.send_message(ss14output)
 
