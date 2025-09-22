@@ -177,15 +177,16 @@ class TimeTransfer(commands.Cog):
                 ss14job = ss14splitline[0]
                 if ss14job in ValidJobs:
                     ss14timedata = ss14splitline[1]
-                    ss14minutes = converttime(ss14timedata)
-                    if ss14minutes != 0:
-                        ss14command = f"playtime_addrole {ss14username} {ss14job} {ss14minutes}"
-                        if len(ss14output+"\n"+ss14command) < 1900:
-                            ss14output = ss14output + "\n" + ss14command
-                        else:
-                            await channel.send(f"```\n{ss14output}\n```")
-                            ss14output = ""
-                            ss14output = ss14output + "\n" + ss14command
+                    if ss14timedata != "HOURS|MINUTES":
+                        ss14minutes = converttime(ss14timedata)
+                        if ss14minutes != 0:
+                            ss14command = f"playtime_addrole {ss14username} {ss14job} {ss14minutes}"
+                            if len(ss14output+"\n"+ss14command) < 1900:
+                                ss14output = ss14output + "\n" + ss14command
+                            else:
+                                await channel.send(f"```\n{ss14output}\n```")
+                                ss14output = ""
+                                ss14output = ss14output + "\n" + ss14command
                 else:
                     ss14output = f"Invalid job entered `{ss14job}`"
                     break
