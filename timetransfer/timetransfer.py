@@ -163,32 +163,34 @@ class TimeTransfer(commands.Cog):
         msg = await channel.fetch_message(timetransfer_message_id)
         textin = msg.content
         textin = textin.replace(" ", "")
+        textin = textin.replace("`", "")
         textlines = textin.splitlines()
         ss14output = ""
         isfirstline = True
         ss14username = ""
         for line in textlines:
-            if isfirstline == True:
-                ss14splitline = line.split(sep="=")
-                ss14username = ss14splitline[1]
-                isfirstline = False
-            else:
-                ss14splitline = line.split(sep="=")
-                ss14job = ss14splitline[0]
-                if ss14job in ValidJobs:
-                    ss14timedata = ss14splitline[1]
-                    if ss14timedata != "HOURS|MINUTES":
-                        ss14minutes = converttime(ss14timedata)
-                        if ss14minutes != 0:
-                            ss14command = f"playtime_addrole {ss14username} {ss14job} {ss14minutes}"
-                            if len(ss14output+"\n"+ss14command) < 1900:
-                                ss14output = ss14output + "\n" + ss14command
-                            else:
-                                await channel.send(f"```\n{ss14output}\n```")
-                                ss14output = ""
-                                ss14output = ss14output + "\n" + ss14command
+            if line != "":
+                if isfirstline == True:
+                    ss14splitline = line.split(sep="=")
+                    ss14username = ss14splitline[1]
+                    isfirstline = False
                 else:
-                    ss14output = f"Invalid job entered `{ss14job}`"
-                    break
+                    ss14splitline = line.split(sep="=")
+                    ss14job = ss14splitline[0]
+                    if ss14job in ValidJobs:
+                        ss14timedata = ss14splitline[1]
+                        if ss14timedata != "HOURS|MINUTES":
+                            ss14minutes = converttime(ss14timedata)
+                            if ss14minutes != 0:
+                                ss14command = f"playtime_addrole {ss14username} {ss14job} {ss14minutes}"
+                                if len(ss14output+"\n"+ss14command) < 1900:
+                                    ss14output = ss14output + "\n" + ss14command
+                                else:
+                                    await channel.send(f"```\n{ss14output}\n```")
+                                    ss14output = ""
+                                    ss14output = ss14output + "\n" + ss14command
+                    else:
+                        ss14output = f"Invalid job entered `{ss14job}`"
+                        break
         await channel.send(f"```\n{ss14output}\n```")
         print("timetransfer complete.")
