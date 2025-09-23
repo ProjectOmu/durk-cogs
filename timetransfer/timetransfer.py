@@ -163,6 +163,7 @@ class TimeTransfer(commands.Cog):
         msg = await channel.fetch_message(timetransfer_message_id)
         textin = msg.content
         textin = textin.replace(" ", "")
+        textin = textin.replace("`", "")
         textlines = textin.splitlines()
         ss14output = ""
         isfirstline = True
