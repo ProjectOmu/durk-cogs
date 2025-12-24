@@ -122,15 +122,18 @@ ValidJobs = [
 
 
 def converttime(data: str):  # Takes in data in the format "HOURS|MINUTES"
-    splitdata = data.split("|")
-    hours = splitdata[0]
-    hours = re.sub("[^0-9]", "", hours)
-    hours = int(hours)
-    minutes = splitdata[1]
-    minutes = re.sub("[^0-9]", "", minutes)
-    minutes = int(minutes)
-    totaltime = ((hours*60)+minutes)
-    return totaltime
+    if "|" in data: # Check that the string contains the seperator.
+        splitdata = data.split("|")
+        hours = splitdata[0]
+        hours = re.sub("[^0-9]", "", hours)
+        hours = int(hours)
+        minutes = splitdata[1]
+        minutes = re.sub("[^0-9]", "", minutes)
+        minutes = int(minutes)
+        totaltime = ((hours*60)+minutes)
+        return totaltime
+    else:
+        return "N/A"
 
 
 class TimeTransfer(commands.Cog):
@@ -169,25 +172,29 @@ class TimeTransfer(commands.Cog):
         isfirstline = True
         ss14username = ""
         for line in textlines:
-            if line != "":
-                if isfirstline == True:
+            if line != "": # Check line is not empty
+                if isfirstline == True: # Grab the username if it is the first line
                     ss14splitline = line.split(sep="=")
                     ss14username = ss14splitline[1]
                     isfirstline = False
-                else:
+                else: # If its not the first line, grab job ID and time
                     ss14splitline = line.split(sep="=")
                     ss14job = ss14splitline[0]
-                    if ss14job in ValidJobs:
+                    if ss14job in ValidJobs: # Check that it is a valid job ID
                         ss14timedata = ss14splitline[1]
-                        if ss14timedata != "HOURS|MINUTES":
+                        if ss14timedata != "HOURS|MINUTES": # Check that they actualy filled it in
                             ss14minutes = converttime(ss14timedata)
-                            if ss14minutes != 0:
-                                ss14command = f"playtime_addrole {ss14username} {ss14job} {ss14minutes}"
-                                if len(ss14output+"\n"+ss14command) < 1900:
-                                    ss14output = ss14output + "\n" + ss14command
-                                else:
-                                    await channel.send(f"```\n{ss14output}\n```")
-                                    ss14output = ""
+                            if ss14minutes == "N/A":
+                                await channel.send(f"The time for job: `{ss14job}` is invalid.")
+                                break
+                            else:
+                                if ss14minutes != 0:
+                                    ss14command = f"playtime_addrole {ss14username} {ss14job} {ss14minutes}"
+                                    if len(ss14output+"\n"+ss14command) < 1900:
+                                        ss14output = ss14output + "\n" + ss14command
+                                    else:
+                                        await channel.send(f"```\n{ss14output}\n```")
+                                        ss14output = ""
                                     ss14output = ss14output + "\n" + ss14command
                     else:
                         ss14output = f"Invalid job entered `{ss14job}`"
