@@ -167,7 +167,6 @@ class TimeTransfer(commands.Cog):
         textin = msg.content
         textin = textin.replace(" ", "")
         textin = textin.replace("`", "")
-        textin = textin.replace("`", "")
         textlines = textin.splitlines()
         ss14output = ""
         isfirstline = True
