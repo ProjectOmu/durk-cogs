@@ -134,6 +134,18 @@ def converttime(data: str):  # Takes in data in the format "HOURS|MINUTES"
         return totaltime
     else:
         return "N/A"
+    if "|" in data: # Check that the string contains the seperator.
+        splitdata = data.split("|")
+        hours = splitdata[0]
+        hours = re.sub("[^0-9]", "", hours)
+        hours = int(hours)
+        minutes = splitdata[1]
+        minutes = re.sub("[^0-9]", "", minutes)
+        minutes = int(minutes)
+        totaltime = ((hours*60)+minutes)
+        return totaltime
+    else:
+        return "N/A"
 
 
 class TimeTransfer(commands.Cog):
