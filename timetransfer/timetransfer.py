@@ -171,6 +171,7 @@ class TimeTransfer(commands.Cog):
         ss14output = ""
         isfirstline = True
         ss14username = ""
+        iserrored = False
         for line in textlines:
             if line != "": # Check line is not empty
                 if isfirstline == True: # Grab the username if it is the first line
@@ -185,6 +186,7 @@ class TimeTransfer(commands.Cog):
                         if ss14timedata != "HOURS|MINUTES": # Check that they actualy filled it in
                             ss14minutes = converttime(ss14timedata)
                             if ss14minutes == "N/A":
+                                iserrored = True
                                 await channel.send(f"The time for job: `{ss14job}` is invalid.")
                                 break
                             else:
@@ -199,5 +201,6 @@ class TimeTransfer(commands.Cog):
                     else:
                         ss14output = f"Invalid job entered `{ss14job}`"
                         break
-        await channel.send(f"```\n{ss14output}\n```")
+        if iserrored == False:
+            await channel.send(f"```\n{ss14output}\n```")
         print("timetransfer complete.")
