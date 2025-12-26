@@ -172,6 +172,7 @@ class TimeTransfer(commands.Cog):
         isfirstline = True
         ss14username = ""
         iserrored = False
+        donecommands = []
         for line in textlines:
             if line != "": # Check line is not empty
                 if isfirstline == True: # Grab the username if it is the first line
