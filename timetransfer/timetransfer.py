@@ -193,14 +193,12 @@ class TimeTransfer(commands.Cog):
                             else:
                                 if ss14minutes != 0:
                                     ss14command = f"playtime_addrole {ss14username} {ss14job} {ss14minutes}"
-                                    if not (ss14command in donecommands):
-                                        donecommands.insert(ss14command)
-                                        if len(ss14output+"\n"+ss14command) < 1900:
-                                            ss14output = ss14output + "\n" + ss14command
-                                        else:
-                                            await channel.send(f"```\n{ss14output}\n```")
-                                            ss14output = ""
-                                            ss14output = ss14output + "\n" + ss14command
+                                    if len(ss14output+"\n"+ss14command) < 1900:
+                                        ss14output = ss14output + "\n" + ss14command
+                                    else:
+                                        await channel.send(f"```\n{ss14output}\n```")
+                                        ss14output = ""
+                                        ss14output = ss14output + "\n" + ss14command
                     else:
                         ss14output = f"Invalid job entered `{ss14job}`"
                         break
