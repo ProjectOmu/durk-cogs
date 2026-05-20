@@ -126,9 +126,13 @@ def converttime(data: str):  # Takes in data in the format "HOURS|MINUTES"
         splitdata = data.split("|")
         hours = splitdata[0]
         hours = re.sub("[^0-9]", "", hours)
+        if hours == "":
+            return "N/A"
         hours = int(hours)
         minutes = splitdata[1]
         minutes = re.sub("[^0-9]", "", minutes)
+        if minutes == "":
+            return "N/A"
         minutes = int(minutes)
         totaltime = ((hours*60)+minutes)
         return totaltime
@@ -172,7 +176,6 @@ class TimeTransfer(commands.Cog):
         isfirstline = True
         ss14username = ""
         iserrored = False
-        donecommands = []
         for line in textlines:
             if line != "": # Check line is not empty
                 if isfirstline == True: # Grab the username if it is the first line
